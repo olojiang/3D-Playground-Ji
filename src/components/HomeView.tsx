@@ -37,7 +37,7 @@ export function HomeView() {
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1.5 text-[12px] font-medium text-muted shadow-card backdrop-blur">
               <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--glow)]" />{t("home.eyebrow")}
             </div>
-            <h1 className="font-display text-[40px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[56px] xl:text-[64px]">
+            <h1 className="font-display text-[38px] font-semibold leading-[1.08] tracking-[-0.03em] [text-wrap:balance] sm:text-[50px] xl:text-[58px]">
               <span className="text-gradient">{t("home.title")}</span>
             </h1>
             <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-muted sm:text-[17px]">{t("home.subtitle", { count: catalog.length })}</p>

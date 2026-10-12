@@ -24,7 +24,8 @@ float wave(vec2 p) {
   float t = uTime * uSpeed;
   float h = sin(p.x * uFrequency + t) * 0.5
           + sin((p.x + p.y) * uFrequency * 0.7 - t * 1.3) * 0.35
-          + sin(length(p) * uFrequency * 1.6 - t * 2.0) * 0.25;
+          + sin(length(p) * uFrequency * 1.6 - t * 2.0) * 0.25
+          + sin(dot(p, vec2(-0.8, 1.7)) * uFrequency * 2.9 + t * 2.4) * 0.08; // small ripples
   return h * uAmplitude;
 }`;
 
@@ -68,7 +69,11 @@ void main() {
   float diff = max(dot(N, L), 0.0);
   float spec = pow(max(dot(N, normalize(L + V)), 0.0), 60.0);
   float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.0);
-  vec3 c = base * (0.25 + 0.75 * diff) + spec * 0.6 + fresnel * vec3(0.45, 0.4, 0.8) * 0.6;
+  vec3 c = base * (0.25 + 0.75 * diff) + spec * 0.8 + fresnel * vec3(0.45, 0.4, 0.8) * 0.6;
+  // Contour lines every 0.1 units of height; fwidth keeps them ~1 pixel wide at any distance.
+  float k = vHeight * 10.0, f = fract(k);
+  float line = 1.0 - smoothstep(0.0, fwidth(k) * 1.2, min(f, 1.0 - f));
+  c += line * 0.18 * uCrest;
   c = mix(c, uBackground, smoothstep(2.8, 4.5, length(vWorld.xz))); // fade the plane's edges away
   // We light in linear space; three.js gives us linearToOutputTexel() to encode for the screen (sRGB).
   fragColor = linearToOutputTexel(vec4(c, 1.0));

@@ -27,7 +27,7 @@ scene.add(key);
 const neon = (color, intensity = 3) => new THREE.MeshStandardMaterial({ color: "#000", emissive: color, emissiveIntensity: intensity });
 const rings = new THREE.Group();
 ["#ff2e88", "#2ee6ff", "#b26bff"].forEach((c, i) => {
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6 + i * 0.45, 0.035, 16, 160), neon(c, 4));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6 + i * 0.45, 0.035, 16, 160), neon(c, 2.2));
   ring.rotation.set(Math.PI / 2 + i * 0.35, i * 0.6, 0);
   rings.add(ring);
 });
@@ -41,23 +41,23 @@ scene.add(core);
 // Floating "fireflies": tiny unlit spheres brighter than 1.0 so they bloom strongly.
 const flies = [];
 for (let i = 0; i < 40; i++) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.9, 0.6).multiplyScalar(4) }));
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.9, 0.6).multiplyScalar(2.5) }));
   m.userData = { r: 2 + Math.random() * 3, a: Math.random() * 6.28, y: Math.random() * 3, s: 0.2 + Math.random() * 0.5 };
   flies.push(m); scene.add(m);
 }
-const grid = new THREE.GridHelper(30, 60, "#3a2a6a", "#1a1430");
+const grid = new THREE.GridHelper(30, 60, "#2a2050", "#141026");
 scene.add(grid);
 
 // ── The composer: an ordered chain of passes ───────────────────────────────────
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));                              // 1. draw the scene into a texture
-const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.9, 0.5, 0.15); // 2. glow (strength, radius, threshold)
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.3, 0.35); // 2. glow (strength, radius, threshold)
 composer.addPass(bloom);
 
 // 3. Our own effect: a ShaderPass runs a fragment shader once per screen pixel.
 //    `tDiffuse` is filled automatically with the previous pass's output.
 const LensShader = {
-  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAberration: { value: 0.004 }, uVignette: { value: 0.9 }, uGrain: { value: 0.05 } },
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAberration: { value: 0.004 }, uVignette: { value: 0.9 }, uGrain: { value: 0.04 } },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
     void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
@@ -74,7 +74,7 @@ const LensShader = {
       float b = texture2D(tDiffuse, vUv - dir * uAberration * 2.0).b;
       vec3 col = vec3(r, g.g, b);
       col *= 1.0 - uVignette * dot(dir, dir) * 1.6;            // vignette: darken the corners
-      col += (hash(vUv * 1000.0 + uTime) - 0.5) * uGrain;     // film grain
+      col *= 1.0 + (hash(vUv * 1000.0 + uTime) - 0.5) * uGrain * 4.0; // film grain (multiplicative: black stays black)
       gl_FragColor = vec4(col, g.a);
     }`,
 };

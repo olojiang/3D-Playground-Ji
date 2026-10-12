@@ -20,7 +20,8 @@ struct Sim {
   size      : f32,     // quad half-size in clip units
   count     : u32,
   pressed   : f32,
-  _pad      : vec2f,
+  time      : f32,
+  flow      : f32,     // strength of a gentle swirling background current
 };
 @group(0) @binding(1) var<uniform> S : Sim;
 `;
@@ -37,13 +38,13 @@ fn simulate(@builtin(workgroup_id) wg : vec3u, @builtin(local_invocation_index) 
   // Work in "square" space so the force field is round on a wide canvas.
   let pos = vec2f(p.pos.x * S.aspect, p.pos.y);
   let att = vec2f(S.attractor.x * S.aspect, S.attractor.y);
-  let d = att - pos;
-  let r2 = dot(d, d) + 0.02;                       // softening: no infinite force at r = 0
-  let dir = d * inverseSqrt(r2);
-  let mass = 0.5 + fract(sin(f32(i) * 12.9898) * 43758.5453);  // per-particle variety → spiral arms
+  let d = att - pos;                                // vector towards the attractor
+  let r = length(d);
+  let mass = 0.5 + fract(sin(f32(i) * 12.9898) * 43758.5453);  // per-particle variety → ribbons
   let k = S.strength * mass * (1.0 + 3.0 * S.pressed);
-  var acc = dir * k / r2 * 0.25;                   // gravity-like pull
-  acc += vec2f(-dir.y, dir.x) * S.swirl * mass / sqrt(r2) * 0.6; // tangential swirl → spirals
+  var acc = d * k * 2.0;                                       // spring pull towards the attractor
+  acc += vec2f(-d.y, d.x) * S.swirl * mass * 2.0 / (1.0 + 3.0 * r); // tangential swirl → orbits
+  acc += S.flow * vec2f(sin(pos.y * 5.0 + S.time * 0.7), cos(pos.x * 5.0 - S.time * 0.5)); // current
   acc.x /= S.aspect;
 
   p.vel = (p.vel + acc * S.dt) * pow(S.damping, S.dt * 60.0);
@@ -80,7 +81,7 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VSO
 @fragment
 fn fs(i : VSOut) -> @location(0) vec4f {
   let fall = max(0.0, 1.0 - dot(i.uv, i.uv));      // round, soft sprite
-  return vec4f(i.color * fall * fall * 0.22, 1.0); // additive blending adds these up → glow
+  return vec4f(i.color * fall * fall * 0.12, 1.0); // additive blending adds these up → glow
 }`;
 
 async function main() {
@@ -113,7 +114,7 @@ async function main() {
   const perr = await device.popErrorScope();
   if (perr) console.error("Pipeline error:", perr.message);
 
-  const params = { count: 1 << 17, strength: 1, swirl: 0.6, damping: 0.985, size: 2.2, reset: () => allocate() };
+  const params = { count: 1 << 17, strength: 1, swirl: 1, flow: 0.3, damping: 0.99, size: 2, reset: () => allocate() };
   const simData = new ArrayBuffer(48);
   const simBuf = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   let particleBuf, simBG, drawBG;
@@ -137,7 +138,8 @@ async function main() {
   gui.add(params, "count", { "32k": 1 << 15, "131k": 1 << 17, "262k": 1 << 18, "524k": 1 << 19, "1M": 1 << 20 }).onChange(allocate);
   gui.add(params, "strength", 0, 4, 0.01).name("attraction");
   gui.add(params, "swirl", -2, 2, 0.01);
-  gui.add(params, "damping", 0.9, 1, 0.001);
+  gui.add(params, "flow", 0, 1.5, 0.01).name("background flow");
+  gui.add(params, "damping", 0.95, 1, 0.001);
   gui.add(params, "size", 0.5, 6, 0.1).name("point size (px)");
   gui.add(params, "reset");
 
@@ -161,10 +163,14 @@ async function main() {
   new ResizeObserver(resize).observe(canvas);
   resize();
 
-  let last = performance.now(), fpsAvg = 60;
+  let last = performance.now(), fps = 0, frames = 0, fpsT = last;
+  let framesInFlight = 0;
   function frame(now) {
+    requestAnimationFrame(frame);
+    if (framesInFlight >= 2) return; // never queue work faster than the GPU finishes it
     const dt = Math.min((now - last) / 1000, 1 / 30);
-    fpsAvg += (1 / Math.max(now - last, 1) * 1000 - fpsAvg) * 0.05;
+    frames++;
+    if (now - fpsT > 1000) { fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; }
     last = now;
     // When the mouse is idle, a point wanders on a Lissajous curve so the scene keeps moving.
     const idle = !mouse.inside || now - mouse.lastMove > 3000;
@@ -174,6 +180,8 @@ async function main() {
     f.set([ax, ay, dt, canvas.width / canvas.height, params.strength, params.swirl, params.damping, (params.size * 2) / canvas.height]);
     u[8] = params.count;
     f[9] = mouse.pressed ? 1 : 0;
+    f[10] = t;
+    f[11] = params.flow;
     device.queue.writeBuffer(simBuf, 0, simData);
 
     const encoder = device.createCommandEncoder();
@@ -190,8 +198,9 @@ async function main() {
     rpass.draw(6, params.count);   // 6 vertices × N instances
     rpass.end();
     device.queue.submit([encoder.finish()]);
-    PG.status(`${params.count.toLocaleString()} particles · ${Math.ceil(params.count / WG)} workgroups × ${WG} · ${fpsAvg.toFixed(0)} fps · hover to steer, hold to pull harder`);
-    requestAnimationFrame(frame);
+    framesInFlight++;
+    device.queue.onSubmittedWorkDone().then(() => framesInFlight--);
+    PG.status(`${params.count.toLocaleString()} particles · ${Math.ceil(params.count / WG)} workgroups × ${WG} · ${fps.toFixed(0)} sim steps/s · hover to steer, hold to pull harder`);
   }
   requestAnimationFrame(frame);
 }

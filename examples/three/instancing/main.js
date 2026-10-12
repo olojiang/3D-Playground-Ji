@@ -10,9 +10,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#08080f");
-scene.fog = new THREE.Fog("#08080f", 16, 34);
+scene.fog = new THREE.Fog("#08080f", 18, 36);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.set(0, 9, 15);
+camera.position.set(0, 10, 19);
 
 scene.add(new THREE.HemisphereLight("#bcd0ff", "#140c1c", 1.0));
 const key = new THREE.DirectionalLight("#ffffff", 2.2);
@@ -44,7 +44,7 @@ function build() {
   if (naive) { scene.remove(naive); naive.traverse((o) => o.material?.dispose?.()); naive = null; }
   const count = params.mode === "instanced" ? params.count : Math.min(params.count, NAIVE_CAP);
   layout(count);
-  const hue = (d) => color.setHSL(0.62 - Math.min(d / 14, 1) * 0.55, 0.75, 0.55);
+  const hue = (d) => color.setHSL(0.6 + Math.min(d / 15, 1) * 0.35, 0.8, 0.55 - Math.min(d / 15, 1) * 0.2);
 
   if (params.mode === "instanced") {
     // ONE object, ONE draw call. Each instance has its own matrix (+ optional colour).

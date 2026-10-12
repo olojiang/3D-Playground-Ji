@@ -78,10 +78,9 @@ const helpers = {
   spot: new THREE.SpotLightHelper(spot),
 };
 Object.values(helpers).forEach((h) => { h.visible = false; scene.add(h); });
-helpers.spot.visible = true;
 
 // ── GUI ──────────────────────────────────────────────────────────────────────
-const params = { animate: true, helpers: true, shadowCamera: false, shadowType: "PCF", radius: 4, mapSize: 2048 };
+const params = { animate: true, helpers: false, shadowCamera: false, shadowType: "PCF", radius: 4, mapSize: 2048 };
 const gui = new GUI({ title: "Parameters" });
 const lightFolder = (name, light, helperKeys = []) => {
   const f = gui.addFolder(name);
@@ -111,7 +110,6 @@ sh.add(params, "mapSize", [256, 512, 1024, 2048, 4096]).name("sun mapSize").onCh
 sh.add(params, "shadowCamera").name("show sun shadow camera").onChange((v) => (helpers.sunShadow.visible = v));
 gui.add(params, "helpers").name("light helpers").onChange((v) => { helpers.sun.visible = helpers.bulb.visible = helpers.spot.visible = v; });
 gui.add(params, "animate");
-helpers.sun.visible = helpers.bulb.visible = true;
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;

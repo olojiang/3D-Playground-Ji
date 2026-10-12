@@ -32,7 +32,12 @@
 <script>
 // Sandbox runtime: runs one user program per page load. The host reloads the iframe to stop a program.
 (() => {
-  const post = (msg) => parent !== window && parent.postMessage({ source: "pg-sandbox", ...msg }, "*");
+  const origError = console.error.bind(console);
+  // Inside the app: report to the host page. Opened directly (e.g. headless checks): print errors to the real console.
+  const post = (msg) => {
+    if (parent !== window) parent.postMessage({ source: "pg-sandbox", ...msg }, "*");
+    else if (msg.type === "error") origError(msg.text);
+  };
   const fmt = (v) => {
     if (v instanceof Error) return v.stack || String(v);
     if (typeof v === "string") return v;

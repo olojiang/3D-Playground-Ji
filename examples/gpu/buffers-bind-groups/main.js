@@ -155,7 +155,10 @@ async function main() {
   new ResizeObserver(resize).observe(canvas);
   resize();
 
+  let framesInFlight = 0;
   function frame(t) {
+    requestAnimationFrame(frame);
+    if (framesInFlight >= 2) return; // never queue work faster than the GPU finishes it
     // Update uniforms on the CPU, then copy them to the GPU buffer (queued, cheap).
     uniformData.set([t / 1000, canvas.width / canvas.height, params.spin, params.pulse, params.hue, params.petals]);
     device.queue.writeBuffer(ubo, 0, uniformData);
@@ -175,7 +178,8 @@ async function main() {
     pass.drawIndexed(mesh.idx.length);
     pass.end();
     device.queue.submit([encoder.finish()]);
-    requestAnimationFrame(frame);
+    framesInFlight++;
+    device.queue.onSubmittedWorkDone().then(() => framesInFlight--);
   }
   PG.status(`${mesh.verts.length / 6} vertices · ${mesh.idx.length / 3} triangles · uniform buffer ${uniformData.byteLength} B rewritten every frame`);
   requestAnimationFrame(frame);

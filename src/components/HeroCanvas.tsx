@@ -21,9 +21,9 @@ float map(vec3 p){
 vec3 nrm(vec3 p){ vec2 e = vec2(.0015, 0.); return normalize(vec3(map(p+e.xyy)-map(p-e.xyy), map(p+e.yxy)-map(p-e.yxy), map(p+e.yyx)-map(p-e.yyx))); }
 void main(){
   vec2 uv = (gl_FragCoord.xy - .5*R) / R.y;
-  vec3 ro = vec3(0., 0., 3.6), rd = normalize(vec3(uv, -1.5));
+  vec3 ro = vec3(0., 0., 4.9), rd = normalize(vec3(uv, -1.55));
   float t = 0., d; bool hit = false;
-  for (int i = 0; i < 90; i++){ d = map(ro + rd*t); if (d < .001){ hit = true; break; } t += d*.85; if (t > 8.) break; }
+  for (int i = 0; i < 90; i++){ d = map(ro + rd*t); if (d < .001){ hit = true; break; } t += d*.85; if (t > 10.) break; }
   float glow = exp(-2.2*length(uv - vec2(.0, .02)));
   vec3 col = BG + (A*.10 + B*.06) * glow;
   if (hit){
@@ -35,7 +35,7 @@ void main(){
     vec3 irid = .5 + .5*cos(6.2831*(vec3(0., .33, .67) + dot(n, v)*1.2 + T*.05));
     vec3 base = mix(A, B, .5 + .5*n.y);
     col = base*(.18 + .55*dif) + mix(base, irid, .35)*fres*1.3 + vec3(spec);
-    col = mix(col, BG, smoothstep(2.5, 6., t));
+    col = mix(col, BG, smoothstep(4., 8., t));
   }
   col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)))*43758.5453) - .5) / 255.;
   o = vec4(col, 1.);

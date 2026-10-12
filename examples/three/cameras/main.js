@@ -34,9 +34,9 @@ scene.add(new THREE.GridHelper(16, 32, "#3a3a50", "#222230"));
 
 // ── Two "subject" cameras we can switch between ────────────────────────────────
 // Perspective: a pyramid-shaped frustum — far things look smaller.
-const persp = new THREE.PerspectiveCamera(50, 1, 1, 12);
+const persp = new THREE.PerspectiveCamera(50, 1, 1, 15);
 // Orthographic: a box-shaped frustum — size does not change with distance.
-const ortho = new THREE.OrthographicCamera(-4, 4, 3, -3, 1, 12);
+const ortho = new THREE.OrthographicCamera(-4, 4, 3, -3, 1, 15);
 // CameraHelper draws a camera's frustum (yellow/red/cyan lines) so we can see it from outside.
 const perspHelper = new THREE.CameraHelper(persp);
 const orthoHelper = new THREE.CameraHelper(ortho);
@@ -48,7 +48,7 @@ observer.position.set(16, 14, 18);
 const controls = new OrbitControls(observer, canvas);
 controls.enableDamping = true;
 
-const params = { type: "perspective", view: "split", fov: 50, near: 1, far: 12, orthoHeight: 6, zoom: 1, orbit: true };
+const params = { type: "perspective", view: "split", fov: 50, near: 1, far: 15, orthoHeight: 8, zoom: 1, orbit: true };
 let subject = persp;
 let subjectAspect = 1;
 
@@ -105,13 +105,20 @@ renderer.setAnimationLoop((time) => {
   timer.update(time);
   const dt = timer.getDelta();
   if (params.orbit) t += dt * 0.3;
-  for (const cam of [persp, ortho]) { cam.position.set(Math.cos(t) * 7, 3.2, Math.sin(t) * 7); cam.lookAt(0, 0.8, 0); }
+  for (const cam of [persp, ortho]) { cam.position.set(Math.cos(t) * 9.5, 4, Math.sin(t) * 9.5); cam.lookAt(0, 0.6, 0); }
   perspHelper.update(); orthoHelper.update(); // helpers follow the camera's matrices
   hero.rotation.y += dt * 0.6;
   controls.update();
 
   renderer.setScissorTest(true);
-  if (params.view === "split") { view(observer, 0, W / 2, true); view(subject, W / 2, W / 2, false); }
+  if (params.view === "split") {
+    view(observer, 0, W / 2, true);
+    view(subject, W / 2, W / 2, false);
+    renderer.setScissor(W / 2 - 1, 0, 2, H); // a thin divider between the two views
+    renderer.setClearColor("#2a2a3a");
+    renderer.clear();
+    renderer.setClearColor("#000000");
+  }
   else if (params.view === "observer") view(observer, 0, W, true);
   else view(subject, 0, W, false);
   renderer.setScissorTest(false);

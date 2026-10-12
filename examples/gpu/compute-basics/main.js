@@ -173,7 +173,10 @@ async function main() {
   new ResizeObserver(resize).observe(canvas);
   resize();
 
+  let framesInFlight = 0;
   function frame(t) {
+    requestAnimationFrame(frame);
+    if (framesInFlight >= 2) return; // never queue work faster than the GPU finishes it
     const dv = new DataView(viewData);
     dv.setUint32(0, Math.floor(params.count / params.bars), true); dv.setUint32(4, params.bars, true);
     dv.setFloat32(8, canvas.width / canvas.height, true); dv.setFloat32(12, t / 1000, true);
@@ -189,7 +192,8 @@ async function main() {
     pass.draw(6, params.bars); // 6 vertices per bar, one instance per bar
     pass.end();
     device.queue.submit([encoder.finish()]);
-    requestAnimationFrame(frame);
+    framesInFlight++;
+    device.queue.onSubmittedWorkDone().then(() => framesInFlight--);
   }
   requestAnimationFrame(frame);
   await benchmark();

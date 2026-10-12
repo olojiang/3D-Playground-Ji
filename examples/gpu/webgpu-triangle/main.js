@@ -85,7 +85,10 @@ async function main() {
   resize();
 
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  let framesInFlight = 0;
   function frame(t) {
+    requestAnimationFrame(frame);
+    if (framesInFlight >= 2) return; // never queue work faster than the GPU finishes it
     const [r, g, b] = hex(params.background);
     const k = params.pulse ? 1 + 0.6 * Math.sin(t * 0.0015) : 1;
     // 7. Record commands: an encoder collects work; nothing runs until submit().
@@ -104,7 +107,8 @@ async function main() {
     pass.end();
     // 9. Hand the finished command buffer to the GPU queue.
     device.queue.submit([encoder.finish()]);
-    requestAnimationFrame(frame);
+    framesInFlight++;
+    device.queue.onSubmittedWorkDone().then(() => framesInFlight--);
   }
   PG.status(`WebGPU ✓  adapter: ${adapter.info?.vendor || "unknown"} ${adapter.info?.architecture || ""} · canvas format: ${format}`);
   requestAnimationFrame(frame);

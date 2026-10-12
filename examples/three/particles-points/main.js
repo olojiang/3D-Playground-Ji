@@ -29,7 +29,7 @@ function glowSprite() {
 }
 const sprite = glowSprite();
 
-const params = { count: 80000, size: 0.035, radius: 5, branches: 4, spin: 1.1, randomness: 0.3, randomPower: 3, inside: "#ffb070", outside: "#5a6bff", rotationSpeed: 0.25 };
+const params = { count: 80000, size: 0.05, radius: 5, branches: 4, spin: 1.1, randomness: 0.3, randomPower: 3, inside: "#ffb070", outside: "#4a63ff", rotationSpeed: 0.25 };
 let points = null, base = null; // base = per-particle radius + starting angle + height (for animation)
 
 // 2. Build a BufferGeometry with a position and a colour attribute per particle.

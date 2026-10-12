@@ -152,7 +152,7 @@ export function Workbench({ code, setCode, originalCode, tabsBefore = [], onSave
   const shownStatus: Status = paused ? "paused" : status;
 
   const leftPane = (
-    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
       <div className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
         <div role="tablist" className="flex items-center gap-0.5">
           {allTabs.map((x) => {
@@ -206,7 +206,7 @@ export function Workbench({ code, setCode, originalCode, tabsBefore = [], onSave
   );
 
   const previewPane = (
-    <section ref={previewBox} className={cx("group/preview relative min-h-[260px] min-w-0 overflow-hidden rounded-2xl border border-line bg-[#07070a] shadow-lift", full && "rounded-none border-0")}>
+    <section ref={previewBox} className={cx("group/preview relative min-h-[260px] min-w-0 flex-1 overflow-hidden rounded-2xl border border-line bg-[#07070a] shadow-lift", full && "rounded-none border-0")}>
       <Preview code={ranCode} runKey={runKey} paused={paused} onMessage={onMessage} />
       {/* status pill */}
       <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[11.5px] font-medium text-white/85 backdrop-blur-md">

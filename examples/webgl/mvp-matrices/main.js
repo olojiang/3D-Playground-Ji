@@ -47,7 +47,9 @@ layout(location = 2) in vec3 aColor;
 uniform mat4 uModel, uView, uProjection;
 out vec3 vNormal;
 out vec3 vColor;
+out vec3 vLocal;                          // local position, used to find the cube's edges
 void main() {
+  vLocal = aPosition;
   vNormal = mat3(uModel) * aNormal;       // rotate normals with the object (no scaling here)
   vColor = aColor;
   gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
@@ -56,6 +58,7 @@ const fragmentSrc = /* glsl */ `#version 300 es
 precision highp float;
 in vec3 vNormal;
 in vec3 vColor;
+in vec3 vLocal;
 uniform float uTint;
 out vec4 outColor;
 void main() {
@@ -64,6 +67,10 @@ void main() {
   vec3 N = normalize(vNormal);
   float diffuse2 = max(dot(N, normalize(vec3(-0.7, -0.2, 0.4))), 0.0); // dim cool fill light
   vec3 c = vColor * (0.12 + 0.95 * diffuse + 0.25 * diffuse2 * vec3(0.6, 0.7, 1.0)) * uTint;
+  // Edge outline: on a face one |coordinate| is 1; near an edge a second one approaches 1 too.
+  vec3 a = abs(vLocal) * 2.0;
+  float second = a.x + a.y + a.z - max(a.x, max(a.y, a.z)) - min(a.x, min(a.y, a.z));
+  c *= mix(1.0, 0.25, smoothstep(0.88, 0.97, second));
   // gl_FrontFacing tells us if we are seeing a back face (only visible with culling off)
   if (!gl_FrontFacing) c = vec3(0.9, 0.1, 0.35) * 0.6;
   outColor = vec4(c, 1.0);

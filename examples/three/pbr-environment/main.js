@@ -14,7 +14,7 @@ const scene = new THREE.Scene();
 const DARK = new THREE.Color("#0b0b12");
 scene.background = DARK;
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
-camera.position.set(0, 2.2, 8.5);
+camera.position.set(1.0, 2.2, 8.5);
 
 // 1. Environment: render a procedural room once, then PMREM pre-filters it into
 //    mip levels for every roughness. scene.environment lights ALL PBR materials.
@@ -31,13 +31,14 @@ scene.add(key);
 // Something colourful behind the glass, so transmission (refraction) has something to bend.
 const backdrop = new THREE.Group();
 for (let i = 0; i < 14; i++) {
-  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.25, 3.2, 0.25), new THREE.MeshStandardMaterial({ color: "#000", emissive: new THREE.Color().setHSL(i / 14, 0.85, 0.5), emissiveIntensity: 1.2 }));
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.25, 3.2, 0.25), new THREE.MeshStandardMaterial({ color: "#000", emissive: new THREE.Color().setHSL(i / 14, 0.9, 0.45), emissiveIntensity: 1.6 }));
   bar.position.set((i - 6.5) * 0.6, 1.6, -3);
+  bar.material.envMapIntensity = 0;
   backdrop.add(bar);
 }
 scene.add(backdrop);
 
-const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshStandardMaterial({ color: "#111118", roughness: 0.35, metalness: 0.2 }));
+const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshStandardMaterial({ color: "#0d0d14", roughness: 0.55, metalness: 0, envMapIntensity: 0.2 }));
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
@@ -49,9 +50,9 @@ const bubble = new THREE.MeshPhysicalMaterial({ color: "#222228", metalness: 1, 
 const pedestal = new THREE.CylinderGeometry(0.75, 0.85, 0.3, 64);
 const pedMat = new THREE.MeshStandardMaterial({ color: "#1d1d28", roughness: 0.5, metalness: 0.3 });
 const samples = [
-  [new THREE.SphereGeometry(0.85, 96, 48), carPaint, -2.6],
+  [new THREE.SphereGeometry(0.85, 96, 48), carPaint, -2.3],
   [new THREE.SphereGeometry(0.85, 96, 48), glass, 0],
-  [new THREE.TorusKnotGeometry(0.5, 0.2, 200, 32), bubble, 2.6],
+  [new THREE.TorusKnotGeometry(0.5, 0.2, 200, 32), bubble, 2.3],
 ].map(([geo, mat, x]) => {
   const ped = new THREE.Mesh(pedestal, pedMat);
   ped.position.set(x, 0.15, 0);
@@ -97,7 +98,7 @@ PG.status(`toneMapping: ${params.toneMapping} · environment: RoomEnvironment vi
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-controls.target.set(0, 1.1, 0);
+controls.target.set(1.0, 1.0, 0); // offset so the GUI does not cover the samples
 controls.maxPolarAngle = Math.PI * 0.49;
 
 function resize() {

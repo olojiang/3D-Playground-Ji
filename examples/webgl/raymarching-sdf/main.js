@@ -109,14 +109,14 @@ void main() {
     vec3 pos = ro + rd * t;
     vec3 n = calcNormal(pos);
     vec3 L = normalize(vec3(0.6, 0.8, 0.4));
-    vec3 albedo = m > 0.5 ? vec3(0.9, 0.42, 0.12)
-      : mix(vec3(0.008, 0.008, 0.014), vec3(0.025, 0.024, 0.04), mod(floor(pos.x * 2.0) + floor(pos.z * 2.0), 2.0)); // checker floor
+    vec3 albedo = m > 0.5 ? vec3(0.8, 0.3, 0.08)
+      : mix(vec3(0.004, 0.004, 0.008), vec3(0.014, 0.013, 0.024), mod(floor(pos.x * 2.0) + floor(pos.z * 2.0), 2.0)); // checker floor
     float dif = max(dot(n, L), 0.0);
     float sha = uShadows ? softShadow(pos + n * 0.002, L) : 1.0;
     float ao = uAO ? ambientOcclusion(pos, n) : 1.0;
     float spe = pow(max(dot(reflect(rd, n), L), 0.0), 32.0) * dif * sha;
     float fre = pow(1.0 - max(dot(-rd, n), 0.0), 4.0);
-    col = albedo * (vec3(1.0, 0.9, 0.75) * 2.2 * dif * sha + vec3(0.35, 0.4, 0.75) * 0.35 * ao);
+    col = albedo * (vec3(1.0, 0.9, 0.75) * 1.9 * dif * sha + vec3(0.35, 0.4, 0.75) * 0.35 * ao);
     col += (spe * 0.9 + fre * vec3(0.25, 0.2, 0.5) * ao) * float(m > 0.5);
     col = mix(col, sky, 1.0 - exp(-0.0025 * t * t * t)); // distance fog
   }
