@@ -1,0 +1,47 @@
+{
+  "slug": "gpgpu-webgl",
+  "order": 7,
+  "difficulty": "advanced",
+  "requires": "webgl2",
+  "tags": [
+    "gpgpu",
+    "render-to-texture",
+    "ping-pong",
+    "float-texture",
+    "simulation"
+  ],
+  "title": {
+    "zh": "WebGL2 上的 GPGPU：水波模拟",
+    "en": "GPGPU on WebGL2: Water Ripples"
+  },
+  "summary": {
+    "zh": "没有计算着色器时，把数据存进浮点纹理、用片元着色器做计算、在两张纹理间乒乓，就能在 WebGL2 上跑一个水波模拟。",
+    "en": "Without compute shaders, store data in float textures, compute with fragment shaders and ping-pong between two textures: a water ripple simulation on WebGL2."
+  },
+  "concepts": {
+    "zh": "## 没有计算着色器怎么办\n\nWebGL 没有 compute。早期的 GPU 通用计算（GPGPU）用的是一个巧妙的替代：\n\n- **数据**存在浮点纹理里，一个纹素就是一个数据单元；\n- **计算**写在片元着色器里，向一张同尺寸的渲染目标画一个全屏四边形，每个纹素各跑一次；\n- **下一步**再把刚写的纹理当输入，两张纹理轮流读写（乒乓）。\n\n这里的模拟网格是 256×256 的 RGBA 浮点纹理：`r` 是当前高度，`g` 是上一步的高度。three.js 的 `GPUComputationRenderer` 帮我们管理渲染目标和交换。\n\n## 波动方程\n\n离散的波动方程只需要上下左右四个邻居：\n\n```glsl\nfloat next = ((n + s + e + w) * 0.5 - h.g) * damping;\ngl_FragColor = vec4(next, h.r, 0.0, 1.0);\n```\n\n下一刻的高度等于邻居平均的两倍减去上一刻的高度，再乘以阻尼让波慢慢平息。把当前高度写进 `g`，下一步就成了“上一刻”。\n\n## 把数据变成画面\n\n水面是一个 256×256 细分的平面。顶点着色器从高度纹理采样，把顶点抬高，并用相邻纹素的**有限差分**算出法线：\n\n```glsl\nfloat dx = H(uv + vec2(texel, 0.0)) - H(uv - vec2(texel, 0.0));\nvNormal = normalize(vec3(-dx / step, 1.0, dy / step));\n```\n\n片元着色器用菲涅尔项混合水体颜色和程序化天空的反射，再加一点高光。\n\n## 交互\n\n鼠标射线与水平面求交，得到 uv 坐标，作为“水滴”的位置传给模拟着色器；没有鼠标时随机下雨。每帧可以跑多步模拟（`sim steps / frame`），波传播得更快。\n\n## 与 WebGPU 计算的对比\n\n这种方法到处都能用，但有局限：每个线程只能写**自己那个**纹素，不能随意写入任意位置，也没有工作组共享内存。WebGPU 的计算着色器和存储缓冲解除了这些限制，这正是本单元后面几课的主题。",
+    "en": "## No compute shaders? No problem\n\nWebGL has no compute stage. Early general-purpose GPU computing (GPGPU) used a clever substitute:\n\n- **data** lives in float textures, one texel per data cell;\n- **computation** is a fragment shader that draws a full-screen quad into a render target of the same size, running once per texel;\n- the **next step** reads the texture just written, so two textures take turns (ping-pong).\n\nHere the simulation grid is a 256×256 RGBA float texture: `r` is the current height and `g` the height one step ago. three.js's `GPUComputationRenderer` manages the render targets and the swapping.\n\n## The wave equation\n\nThe discrete wave equation needs only the four neighbours:\n\n```glsl\nfloat next = ((n + s + e + w) * 0.5 - h.g) * damping;\ngl_FragColor = vec4(next, h.r, 0.0, 1.0);\n```\n\nThe next height is twice the neighbour average minus the previous height, multiplied by a damping factor so waves die down. Writing the current height into `g` turns it into \"previous\" for the next step.\n\n## Turning data into a picture\n\nThe water is a plane subdivided 256×256. The vertex shader samples the height texture to raise each vertex and computes the normal from **finite differences** of neighbouring texels:\n\n```glsl\nfloat dx = H(uv + vec2(texel, 0.0)) - H(uv - vec2(texel, 0.0));\nvNormal = normalize(vec3(-dx / step, 1.0, dy / step));\n```\n\nThe fragment shader uses a Fresnel term to blend the water colour with reflections of a procedural sky, plus a specular highlight.\n\n## Interaction\n\nA ray from the mouse hits the water plane, giving a uv coordinate that becomes the drop position in the simulation shader. Without the mouse it rains at random. Several simulation steps can run per frame (`sim steps / frame`), so waves travel faster.\n\n## Compared with WebGPU compute\n\nThis approach works everywhere, but it has limits: each thread can write only **its own** texel, never an arbitrary location, and there is no workgroup shared memory. WebGPU compute shaders and storage buffers lift those limits, which is what the rest of this track explores."
+  },
+  "keyApis": [
+    "GPUComputationRenderer",
+    "gpgpu.addVariable",
+    "gpgpu.setVariableDependencies",
+    "gpgpu.compute",
+    "getCurrentRenderTarget",
+    "THREE.ShaderMaterial",
+    "THREE.Raycaster",
+    "texture2D"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 damping 调到 0.999，波纹几乎不衰减，会发生什么？",
+      "把 sim steps / frame 调到 6，对比波的传播速度。",
+      "把邻居的权重 0.5 改成 0.49，观察能量如何更快地流失。"
+    ],
+    "en": [
+      "Set damping to 0.999 so ripples barely decay. What happens?",
+      "Set sim steps / frame to 6 and compare how fast the waves travel.",
+      "Change the neighbour weight 0.5 to 0.49 and watch energy drain faster."
+    ]
+  }
+}

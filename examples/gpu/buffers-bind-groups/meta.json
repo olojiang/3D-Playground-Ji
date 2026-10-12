@@ -1,0 +1,50 @@
+{
+  "slug": "buffers-bind-groups",
+  "order": 3,
+  "difficulty": "intermediate",
+  "requires": "webgpu",
+  "tags": [
+    "webgpu",
+    "vertex-buffer",
+    "index-buffer",
+    "uniform-buffer",
+    "bind-group",
+    "msaa"
+  ],
+  "title": {
+    "zh": "缓冲区与绑定组",
+    "en": "Buffers & Bind Groups"
+  },
+  "summary": {
+    "zh": "用顶点缓冲、索引缓冲和 uniform 缓冲喂数据给 WGSL，并通过绑定组把资源接到着色器上。",
+    "en": "Feed data to WGSL with vertex, index and uniform buffers, and wire resources to shaders through bind groups."
+  },
+  "concepts": {
+    "zh": "## 缓冲区：GPU 上的一块内存\n\n`device.createBuffer({ size, usage })` 在 GPU 上分配内存。`usage` 标志声明它的用途：`VERTEX`、`INDEX`、`UNIFORM`、`STORAGE`，以及能否作为拷贝目标 `COPY_DST`。用错用途会直接报校验错误，这让驱动能提前做好优化。数据用 `queue.writeBuffer` 上传，它是排队执行的，开销很小。\n\n## 顶点缓冲与交错布局\n\n这朵“花”的每个顶点占 24 字节：位置（2 个 float）、颜色（3 个）、环号（1 个）交错存放。管线里的 `buffers` 描述告诉 GPU 怎么切分：\n\n```js\narrayStride: 24,\nattributes: [\n  { shaderLocation: 0, offset: 0,  format: \"float32x2\" },\n  { shaderLocation: 1, offset: 8,  format: \"float32x3\" },\n  { shaderLocation: 2, offset: 20, format: \"float32\" },\n]\n```\n\n`shaderLocation` 对应 WGSL 里的 `@location(n)`。**索引缓冲**让共享的顶点只存一次，三角形用索引引用它们，最后用 `drawIndexed` 绘制。\n\n## Uniform 缓冲与对齐\n\nuniform 是一次绘制里所有顶点和片元都相同的数据，比如时间、宽高比。WGSL 结构体有对齐规则：`vec2f` 按 8 字节对齐，`vec3f` 和 `vec4f` 按 16 字节对齐，结构体总大小向上取整到 16 的倍数。所以这里补了一个 `_pad` 字段：\n\n```wgsl\nstruct Uniforms { time : f32, aspect : f32, spin : f32, pulse : f32,\n                  hue : f32, petals : f32, _pad : vec2f };\n@group(0) @binding(0) var<uniform> u : Uniforms;\n```\n\n每帧在 CPU 上更新一个 `Float32Array`，再 `writeBuffer` 一次即可。\n\n## 绑定组布局与绑定组\n\n- **绑定组布局**描述资源的“形状”：哪个 binding、什么类型、哪些着色器阶段可见。\n- **绑定组**把具体的缓冲区插进这个形状。\n- 绘制前 `pass.setBindGroup(0, bindGroup)`，对应 WGSL 里的 `@group(0)`。\n\n把很少变化的资源和每帧变化的资源放在不同的 group 里，切换起来更便宜。\n\n## MSAA\n\n管线设置 `multisample: { count: 4 }` 后，需要一张 4 倍采样的颜色纹理作为渲染目标，再通过 `resolveTarget` 解析到画布上。画布尺寸变化时这张纹理也要重建。\n\n和所有 WebGPU 示例一样，渲染循环用 `onSubmittedWorkDone` 把在途帧数限制在 2 帧以内。",
+    "en": "## Buffers: a block of GPU memory\n\n`device.createBuffer({ size, usage })` allocates memory on the GPU. The `usage` flags declare what it is for: `VERTEX`, `INDEX`, `UNIFORM`, `STORAGE`, and whether it may be a copy destination (`COPY_DST`). Using a buffer the wrong way is a validation error, which lets the driver optimise up front. Data is uploaded with `queue.writeBuffer`, which is queued and cheap.\n\n## Vertex buffers and interleaved layout\n\nEach vertex of this flower takes 24 bytes: position (2 floats), colour (3) and ring (1), interleaved. The pipeline's `buffers` description tells the GPU how to slice them:\n\n```js\narrayStride: 24,\nattributes: [\n  { shaderLocation: 0, offset: 0,  format: \"float32x2\" },\n  { shaderLocation: 1, offset: 8,  format: \"float32x3\" },\n  { shaderLocation: 2, offset: 20, format: \"float32\" },\n]\n```\n\n`shaderLocation` matches `@location(n)` in WGSL. An **index buffer** stores shared vertices only once; triangles refer to them by index and are drawn with `drawIndexed`.\n\n## Uniform buffers and alignment\n\nUniforms are values that are the same for every vertex and fragment in a draw, such as time or aspect ratio. WGSL structs have alignment rules: a `vec2f` aligns to 8 bytes, `vec3f` and `vec4f` to 16, and the struct size rounds up to a multiple of 16. That is why there is a `_pad` field:\n\n```wgsl\nstruct Uniforms { time : f32, aspect : f32, spin : f32, pulse : f32,\n                  hue : f32, petals : f32, _pad : vec2f };\n@group(0) @binding(0) var<uniform> u : Uniforms;\n```\n\nEach frame you update a `Float32Array` on the CPU and call `writeBuffer` once.\n\n## Bind group layouts and bind groups\n\n- A **bind group layout** describes the shape of the resources: which binding, what type, which shader stages can see it.\n- A **bind group** plugs actual buffers into that shape.\n- Before drawing, `pass.setBindGroup(0, bindGroup)` matches `@group(0)` in WGSL.\n\nKeeping rarely changing resources and per-frame resources in different groups makes switching cheaper.\n\n## MSAA\n\nWith `multisample: { count: 4 }` in the pipeline, you render into a 4× multisampled colour texture and resolve it into the canvas through `resolveTarget`. That texture must be recreated when the canvas resizes.\n\nLike every WebGPU example here, the render loop uses `onSubmittedWorkDone` to keep at most two frames in flight."
+  },
+  "keyApis": [
+    "device.createBuffer",
+    "GPUBufferUsage",
+    "device.queue.writeBuffer",
+    "device.createBindGroupLayout",
+    "device.createBindGroup",
+    "device.createPipelineLayout",
+    "pass.setVertexBuffer",
+    "pass.setIndexBuffer",
+    "pass.drawIndexed",
+    "multisample"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 buildFlower(96, 12) 的分段数降到 8，看看低多边形的样子。",
+      "在 Uniforms 里再加一个 f32 字段（比如亮度），注意要重新计算缓冲区大小和对齐。",
+      "把 multisample 的 count 改成 1，直接渲染到画布纹理（不再用 msaa 纹理和 resolveTarget），对比边缘锯齿。"
+    ],
+    "en": [
+      "Drop the segment count in buildFlower(96, 12) to 8 to see the low-poly version.",
+      "Add another f32 field (say, brightness) to Uniforms, and recompute the buffer size and alignment.",
+      "Set multisample count to 1 and render straight into the canvas texture (no msaa texture, no resolveTarget), then compare the jagged edges."
+    ]
+  }
+}

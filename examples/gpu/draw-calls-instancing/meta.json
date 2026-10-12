@@ -1,0 +1,47 @@
+{
+  "slug": "draw-calls-instancing",
+  "order": 8,
+  "difficulty": "intermediate",
+  "requires": "webgl",
+  "tags": [
+    "draw-calls",
+    "instancing",
+    "merged-geometry",
+    "cpu-overhead",
+    "performance"
+  ],
+  "title": {
+    "zh": "绘制调用与实例化",
+    "en": "Draw Calls & Instancing"
+  },
+  "summary": {
+    "zh": "同一画面三种画法：N 个独立网格、一个 InstancedMesh、一个合并几何体，对比绘制调用数和 CPU 开销。",
+    "en": "One picture, three strategies: N separate meshes, one InstancedMesh, one merged geometry. Compare draw calls and CPU cost."
+  },
+  "concepts": {
+    "zh": "## 绘制调用的代价\n\n每次**绘制调用**（draw call），CPU 都要做一堆准备：切换着色器、绑定缓冲、上传这个物体的矩阵 uniform、做驱动校验，然后才把命令交给 GPU。几千个小物体时，瓶颈往往不在 GPU 画三角形，而在 CPU 发命令。状态栏里的 `draw calls` 来自 `renderer.info.render.calls`。\n\n## 三种策略\n\n- **separate**：N 个 `Mesh` 共享同一几何体，但每个都是一个场景对象，就是 N 次绘制调用。最灵活，最慢。\n- **instanced**：一个 `InstancedMesh`，一次绘制调用。每个实例的变换矩阵和颜色放在 GPU 缓冲里（`instanceMatrix`、`instanceColor`），顶点着色器按实例编号去取。\n- **merged**：把所有副本预先变换好，合并成一个大 `BufferGeometry`，也只有一次绘制调用；但各个小物体再也不能单独运动了。\n\n## 实例化的写法\n\n```js\nconst inst = new THREE.InstancedMesh(geo, mat, count);\ninst.setMatrixAt(i, m.compose(pos, quat, scale));\ninst.instanceMatrix.needsUpdate = true;\n```\n\n每帧更新所有矩阵，然后**一次**上传整个缓冲，代替 N 次 uniform 更新。用 `setUsage(THREE.DynamicDrawUsage)` 告诉驱动这个缓冲会频繁改写。\n\n在着色器层面，实例化就是 `gl.drawArraysInstanced`（WebGPU 里是 `draw(vertexCount, instanceCount)`），顶点着色器多了一个内置的实例编号。\n\n## 怎么选\n\n1. 很多相同几何体、各自运动：**实例化**。\n2. 静态、不再移动的场景（建筑、地形装饰）：**合并**，连每帧更新矩阵的 CPU 循环都省了。\n3. 少量需要独立材质、独立交互的物体：普通网格就好。\n\n## 看数字\n\n把 count 调到 30000，在 separate 模式下观察 `CPU update + render()` 的毫秒数和帧率，再切到 instanced 和 merged。三角形数量完全一样，差别几乎全来自 CPU 一侧。\n\n> 注意 instanced 模式下 CPU 时间主要花在 JS 循环里重算 3 万个矩阵；如果把运动挪到顶点着色器（或计算着色器）里，CPU 就几乎无事可做了。",
+    "en": "## What a draw call costs\n\nFor every **draw call** the CPU does a lot of preparation: switch shaders, bind buffers, upload this object's matrix uniforms, let the driver validate everything, and only then hand a command to the GPU. With thousands of small objects the bottleneck is often not the GPU drawing triangles but the CPU issuing commands. The `draw calls` figure in the status line comes from `renderer.info.render.calls`.\n\n## Three strategies\n\n- **separate**: N `Mesh` objects sharing one geometry, but each is its own scene object, so N draw calls. Most flexible, slowest.\n- **instanced**: one `InstancedMesh`, one draw call. Each instance's transform and colour live in GPU buffers (`instanceMatrix`, `instanceColor`), and the vertex shader fetches them by instance index.\n- **merged**: every copy pre-transformed and baked into one big `BufferGeometry`. Also one draw call, but the pieces can no longer move on their own.\n\n## Instancing in code\n\n```js\nconst inst = new THREE.InstancedMesh(geo, mat, count);\ninst.setMatrixAt(i, m.compose(pos, quat, scale));\ninst.instanceMatrix.needsUpdate = true;\n```\n\nUpdate every matrix each frame, then upload the whole buffer **once** instead of making N uniform updates. `setUsage(THREE.DynamicDrawUsage)` tells the driver the buffer is rewritten often.\n\nAt the shader level, instancing is `gl.drawArraysInstanced` (in WebGPU, `draw(vertexCount, instanceCount)`), and the vertex shader gets one extra built-in: the instance index.\n\n## Which one to use\n\n1. Many copies of the same geometry, each moving: **instancing**.\n2. Static scenery that never moves (buildings, terrain props): **merging**, which even removes the per-frame matrix loop.\n3. A few objects that need their own material or interaction: plain meshes are fine.\n\n## Read the numbers\n\nSet count to 30000 in separate mode and watch the `CPU update + render()` milliseconds and the frame rate, then switch to instanced and merged. The triangle count is identical; the difference is almost entirely on the CPU side.\n\n> In instanced mode most of the remaining CPU time is the JS loop recomputing 30,000 matrices. Move the motion into the vertex shader (or a compute shader) and the CPU has almost nothing left to do."
+  },
+  "keyApis": [
+    "THREE.InstancedMesh",
+    "instancedMesh.setMatrixAt",
+    "instancedMesh.setColorAt",
+    "instanceMatrix.needsUpdate",
+    "THREE.DynamicDrawUsage",
+    "mergeGeometries",
+    "renderer.info.render",
+    "gl.drawArraysInstanced"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 count 拉到 30000，依次切换三种模式，记下每种的 CPU 毫秒数和 draw calls。",
+      "关掉 animate objects，再看 instanced 模式的 CPU 时间降了多少。",
+      "把 IcosahedronGeometry 的细分从 0 改成 3，三角形变多后，哪种模式最先吃力？"
+    ],
+    "en": [
+      "Push count to 30000 and switch through the three modes, noting CPU ms and draw calls for each.",
+      "Turn off animate objects and see how much the instanced mode's CPU time drops.",
+      "Raise the IcosahedronGeometry detail from 0 to 3. With more triangles, which mode struggles first?"
+    ]
+  }
+}

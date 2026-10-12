@@ -6,7 +6,7 @@ import sys, os, json
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get("BASE", "http://localhost:4600")
 os.makedirs("work-shots", exist_ok=True)
-args = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-unsafe-webgpu", "--enable-features=Vulkan,WebGPU", "--use-webgpu-adapter=swiftshader"]
+args = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-unsafe-webgpu", "--enable-features=Vulkan,WebGPU", "--use-webgpu-adapter=swiftshader", "--use-vulkan=swiftshader"]
 ok = True
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path="/usr/bin/chromium", args=args)

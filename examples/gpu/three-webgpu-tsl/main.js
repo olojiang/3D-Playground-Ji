@@ -55,7 +55,7 @@ scene.add(blob);
 const COUNT = 20000;
 const init = new Float32Array(COUNT * 3);
 for (let i = 0; i < COUNT; i++) {
-  const a = Math.random() * Math.PI * 2, r = 1.7 + Math.pow(Math.random(), 2) * 1.6;
+  const a = Math.random() * Math.PI * 2, r = 1.6 + Math.pow(Math.random(), 2) * 1.3;
   init.set([Math.cos(a) * r, (Math.random() - 0.5) * 0.25 * r, Math.sin(a) * r], i * 3);
 }
 const positions = instancedArray(init, "vec3"); // a GPU storage buffer, one vec3 per particle
@@ -72,10 +72,10 @@ const orbit = Fn(() => {
 const spriteMat = new THREE.SpriteNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
 const pAttr = positions.toAttribute();             // read the same buffer as a per-instance attribute
 spriteMat.positionNode = pAttr;
-spriteMat.scaleNode = float(0.035);
+spriteMat.scaleNode = float(0.022);
 spriteMat.colorNode = Fn(() => {
   const glow = smoothstep(0.5, 0.0, length(uv().sub(0.5)));
-  return vec4(palette(length(pAttr).mul(0.25).add(uHue).add(0.4)).mul(glow), glow);
+  return vec4(palette(length(pAttr).mul(0.18).add(uHue).add(0.45)).mul(glow).mul(0.8), glow);
 })();
 const particles = new THREE.Sprite(spriteMat);
 particles.count = COUNT; // instanced: one sprite per particle

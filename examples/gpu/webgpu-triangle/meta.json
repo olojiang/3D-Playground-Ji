@@ -1,0 +1,49 @@
+{
+  "slug": "webgpu-triangle",
+  "order": 2,
+  "difficulty": "beginner",
+  "requires": "webgpu",
+  "tags": [
+    "webgpu",
+    "wgsl",
+    "render-pipeline",
+    "command-encoder",
+    "hello-triangle"
+  ],
+  "title": {
+    "zh": "你好 WebGPU：第一个三角形",
+    "en": "Hello WebGPU: The First Triangle"
+  },
+  "summary": {
+    "zh": "从“有没有 GPU”到屏幕上出现三角形的完整路径：adapter、device、管线、命令编码与提交。",
+    "en": "The full path from \"is there a GPU?\" to a triangle on screen: adapter, device, pipeline, command encoding and submit."
+  },
+  "concepts": {
+    "zh": "## 从检测到设备\n\nWebGPU 的入口是 `navigator.gpu`。先检测它是否存在，再请求 **adapter**（一块物理或软件 GPU），最后从 adapter 拿到 **device**：你与 GPU 之间私有的逻辑连接，所有缓冲区、纹理、管线都从它创建。\n\n```js\nconst adapter = await navigator.gpu.requestAdapter();\nconst device = await adapter.requestDevice();\n```\n\n即使 `navigator.gpu` 存在，adapter 也可能为 `null`，所以两步都要检查，并给用户友好的提示。\n\n## 画布与格式\n\n`canvas.getContext(\"webgpu\")` 拿到上下文后要 `configure`：指定 device 和像素格式。`getPreferredCanvasFormat()` 返回当前平台最高效的格式（`bgra8unorm` 或 `rgba8unorm`）。\n\n## WGSL 与渲染管线\n\n着色器用 **WGSL** 编写。这个例子没有顶点缓冲，位置和颜色直接按内置的 `vertex_index` 从常量数组取：\n\n```wgsl\n@vertex\nfn vs_main(@builtin(vertex_index) i : u32) -> VSOut {\n  var P = array<vec2f, 3>(vec2f(0.0, 0.72), vec2f(-0.68, -0.56), vec2f(0.68, -0.56));\n  ...\n}\n```\n\n**渲染管线**把着色器和固定功能状态（图元拓扑、输出格式等）烘焙成一个不可变对象。想换拓扑就得建新管线：创建慢、切换快，这是刻意的设计。\n\n## 命令编码与提交\n\nGPU 不是一条条立即执行命令的。你先用 **command encoder** 录制命令，开一个 **render pass**（清屏、绘制），结束后 `finish()` 得到命令缓冲，再 `queue.submit()` 交给 GPU 队列。\n\n## 限制在途帧数\n\n`requestAnimationFrame` 每秒触发约 60 次，但 GPU 不一定跟得上。如果每帧都无条件提交，命令会在队列里越堆越多，延迟和内存一起上涨。所以渲染循环记录“在途帧数”，用 `queue.onSubmittedWorkDone()` 在 GPU 完成后减一，超过 2 帧就跳过本帧：\n\n```js\nif (framesInFlight >= 2) return;\ndevice.queue.submit([encoder.finish()]);\nframesInFlight++;\ndevice.queue.onSubmittedWorkDone().then(() => framesInFlight--);\n```\n\n后面所有 WebGPU 示例都沿用这个模式。",
+    "en": "## From detection to device\n\nWebGPU starts at `navigator.gpu`. Check that it exists, request an **adapter** (a physical or software GPU), then get a **device** from it: your private, logical connection to the GPU. Every buffer, texture and pipeline is created from the device.\n\n```js\nconst adapter = await navigator.gpu.requestAdapter();\nconst device = await adapter.requestDevice();\n```\n\nThe adapter can be `null` even when `navigator.gpu` exists, so check both steps and show the user a friendly message.\n\n## Canvas and format\n\nAfter `canvas.getContext(\"webgpu\")` you `configure` the context with the device and a pixel format. `getPreferredCanvasFormat()` returns the most efficient one for the platform (`bgra8unorm` or `rgba8unorm`).\n\n## WGSL and the render pipeline\n\nShaders are written in **WGSL**. This example has no vertex buffer: positions and colours come from constant arrays indexed by the built-in `vertex_index`:\n\n```wgsl\n@vertex\nfn vs_main(@builtin(vertex_index) i : u32) -> VSOut {\n  var P = array<vec2f, 3>(vec2f(0.0, 0.72), vec2f(-0.68, -0.56), vec2f(0.68, -0.56));\n  ...\n}\n```\n\nA **render pipeline** bakes the shaders and fixed-function state (primitive topology, output format and so on) into one immutable object. Changing the topology means creating a new pipeline: slow to create, fast to switch, by design.\n\n## Encoding and submitting commands\n\nThe GPU does not execute commands one at a time as you call them. You record them with a **command encoder**, open a **render pass** (clear, then draw), call `finish()` to get a command buffer, and hand it to the GPU with `queue.submit()`.\n\n## Limiting frames in flight\n\n`requestAnimationFrame` fires about 60 times a second, but the GPU may not keep up. If every frame submitted unconditionally, commands would pile up in the queue and latency and memory would grow together. So the loop counts frames in flight, decrements the count in `queue.onSubmittedWorkDone()` once the GPU has finished, and skips a frame when two are already queued:\n\n```js\nif (framesInFlight >= 2) return;\ndevice.queue.submit([encoder.finish()]);\nframesInFlight++;\ndevice.queue.onSubmittedWorkDone().then(() => framesInFlight--);\n```\n\nEvery WebGPU example after this one uses the same pattern."
+  },
+  "keyApis": [
+    "navigator.gpu.requestAdapter",
+    "adapter.requestDevice",
+    "context.configure",
+    "navigator.gpu.getPreferredCanvasFormat",
+    "device.createShaderModule",
+    "device.createRenderPipeline",
+    "device.createCommandEncoder",
+    "encoder.beginRenderPass",
+    "device.queue.submit",
+    "device.queue.onSubmittedWorkDone"
+  ],
+  "tryThis": {
+    "zh": [
+      "在 GUI 里把 topology 切到 line-strip 和 point-list，观察同样三个顶点的不同画法。",
+      "给数组再加三个顶点，把 pass.draw(3) 改成 draw(6)，画出第二个三角形。",
+      "故意在 WGSL 里写错一个字，看控制台里 getCompilationInfo 报出的行号。"
+    ],
+    "en": [
+      "Switch topology to line-strip and point-list in the GUI and see the same three vertices drawn differently.",
+      "Add three more vertices to the arrays and change pass.draw(3) to draw(6) for a second triangle.",
+      "Introduce a typo into the WGSL and read the line number getCompilationInfo reports in the console."
+    ]
+  }
+}

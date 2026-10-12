@@ -1,0 +1,47 @@
+{
+  "slug": "gpu-parallelism",
+  "order": 1,
+  "difficulty": "beginner",
+  "requires": "webgl2",
+  "tags": [
+    "parallelism",
+    "cpu-vs-gpu",
+    "fragment-shader",
+    "simt",
+    "mandelbrot"
+  ],
+  "title": {
+    "zh": "CPU 与 GPU：并行的力量",
+    "en": "CPU vs GPU: The Power of Parallelism"
+  },
+  "summary": {
+    "zh": "同一张 Mandelbrot 分形，左边用 JavaScript 逐像素计算，右边用片元着色器让每个像素各自成为一个线程。",
+    "en": "The same Mandelbrot image computed twice: pixel by pixel in JavaScript on the left, one thread per pixel in a fragment shader on the right."
+  },
+  "concepts": {
+    "zh": "## 为什么要用 GPU\n\nCPU 只有少数几个强大的核心，擅长复杂的分支和顺序逻辑；GPU 有成千上万个简单的核心，擅长把**同一段程序**同时跑在海量数据上。图像正好是这种数据：每个像素都按同一个公式计算，彼此独立。\n\n## 左边：一个线程，逐个像素\n\nJavaScript 版本是两层 `for` 循环，一个像素算完再算下一个。因为太慢，它只在降低后的分辨率（`CPU resolution`）下计算，再拉伸到左半屏。\n\n## 右边：每个像素一个线程\n\n片元着色器的 `main()` 只描述**一个像素**怎么算，GPU 会为屏幕上的每个像素各启动一次：\n\n```glsl\nvec2 c = uCenter + px * uScale;\nfor (; i < uIter; i++) {\n  z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;\n  if (dot(z, z) > 256.0) break;\n}\n```\n\n画一个盖满视口的大三角形，就等于“对每个像素运行一次这个函数”，这是 GPU 通用计算最古老的技巧。\n\n## SIMT 与分支发散\n\nGPU 把线程按 32 或 64 个一组（warp / wavefront）调度，同组线程**同时执行同一条指令**。如果组内有的像素早早逃逸、有的要跑满迭代，先结束的线程只能空等，这叫**分支发散**。分形边界附近最慢，就是这个原因。\n\n## 计时的陷阱\n\nGPU 命令是异步提交的：`drawArrays` 返回时活可能还没干完。这里用 `readPixels` 读回一个像素，强迫 CPU 等 GPU 完成，测到的才是真实耗时。第一次绘制还包含着色器编译，所以先做一次预热。\n\n> 在无头测试环境里，GPU 往往由 SwiftShader 这类**软件渲染器**模拟（其实还是在 CPU 上跑），测出的 GPU 时间可能比 JS 还慢。在真正的显卡上，右半边通常快几十到几百倍。\n\n打开 `auto zoom`，CPU 每帧都要重算，你能直观感受到两者差距。",
+    "en": "## Why use the GPU at all\n\nA CPU has a handful of powerful cores, good at branchy, sequential logic. A GPU has thousands of simple cores, built to run **the same program** over huge amounts of data at once. Images are exactly that kind of data: every pixel follows the same formula, independently of its neighbours.\n\n## Left: one thread, pixel after pixel\n\nThe JavaScript version is two nested `for` loops that finish one pixel before starting the next. It is so slow that it runs at a reduced resolution (`CPU resolution`) and the result is stretched over the left half.\n\n## Right: one thread per pixel\n\nA fragment shader's `main()` describes how to compute **one pixel**, and the GPU launches it once for every pixel on screen:\n\n```glsl\nvec2 c = uCenter + px * uScale;\nfor (; i < uIter; i++) {\n  z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;\n  if (dot(z, z) > 256.0) break;\n}\n```\n\nDrawing one big triangle that covers the viewport means \"run this function for every pixel\". It is the oldest trick in GPU computing.\n\n## SIMT and divergence\n\nThe GPU schedules threads in groups of 32 or 64 (warps or wavefronts) that **execute the same instruction together**. If some pixels in a group escape early while others need every iteration, the finished threads simply wait. This is **branch divergence**, and it is why the fractal's boundary is the slowest part to draw.\n\n## The timing trap\n\nGPU commands are asynchronous: when `drawArrays` returns, the work may not have started. Reading one pixel back with `readPixels` forces the CPU to wait for the GPU, so the measurement covers the real work. The first draw also pays for shader compilation, so the code warms up once first.\n\n> In headless test environments the GPU is often emulated by a **software renderer** such as SwiftShader, which really runs on the CPU, so the GPU time can even look slower than JS. On a real graphics card the right half is typically tens to hundreds of times faster.\n\nTurn on `auto zoom` to make the CPU recompute every frame and feel the gap for yourself."
+  },
+  "keyApis": [
+    "canvas.getContext('webgl2')",
+    "gl.drawArrays",
+    "gl_FragCoord",
+    "gl_VertexID",
+    "gl.readPixels",
+    "gl.texImage2D",
+    "ImageData",
+    "performance.now"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 iterations 调到 2000，对比左右两边的耗时怎么变化。",
+      "把 CPU resolution 调到 1，看看 JS 在全分辨率下要花多久。",
+      "删掉 drawGPU 后面的 readPixels，再看 GPU 计时变成了多少，想想为什么。"
+    ],
+    "en": [
+      "Raise iterations to 2000 and compare how both timings change.",
+      "Set CPU resolution to 1 and see how long JS takes at full resolution.",
+      "Delete the readPixels after drawGPU and see what the GPU timing becomes. Why?"
+    ]
+  }
+}

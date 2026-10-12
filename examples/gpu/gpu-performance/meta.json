@@ -1,0 +1,47 @@
+{
+  "slug": "gpu-performance",
+  "order": 11,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "performance",
+    "overdraw",
+    "fill-rate",
+    "bandwidth",
+    "profiling"
+  ],
+  "title": {
+    "zh": "GPU 性能：时间花在哪里",
+    "en": "GPU Performance: Where the Time Goes"
+  },
+  "summary": {
+    "zh": "每个旋钮对应一种瓶颈：重绘层数、片元运算量、纹理带宽、分辨率和顶点数，用定时器查询读出真实的 GPU 时间。",
+    "en": "One knob per bottleneck: overdraw layers, fragment math, texture bandwidth, resolution and vertex count, with real GPU time from a timer query."
+  },
+  "concepts": {
+    "zh": "## 先测量，再优化\n\nGPU 是流水线：顶点处理、光栅化、片元着色、写入帧缓冲。整帧的速度由**最慢的那一段**决定。所以优化前要先找出瓶颈：动一个旋钮，看时间变不变。\n\n## 读出 GPU 时间\n\nJS 里的 `performance.now()` 只能量到提交命令的时间。`EXT_disjoint_timer_query_webgl2` 让 GPU 自己计时：\n\n```js\ngl.beginQuery(ext.TIME_ELAPSED_EXT, q);\n// ... 所有绘制 ...\ngl.endQuery(ext.TIME_ELAPSED_EXT);\n// 几帧之后：\nif (gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) ns = gl.getQueryParameter(q, gl.QUERY_RESULT);\n```\n\n结果是异步的，要隔几帧再取；如果 `GPU_DISJOINT_EXT` 为真（比如显卡切换了频率），这次结果作废。扩展不可用时退回 rAF 帧间隔，但它被垂直同步卡在 16.7 ms，只有掉帧时才看得出差别。\n\n## 四类开销\n\n- **填充率与重绘**：每多一层全屏混合，每个像素就多着色一次、多读写一次帧缓冲。粒子、半透明 UI、体积雾都是重绘大户。\n- **片元运算**：`ALU iterations` 控制每个像素的循环次数。像素数乘以每像素运算量，增长非常快。\n- **纹理带宽**：`texture taps` 是每像素采样次数，`texture spread` 把采样点打散。相邻像素读相邻纹素时缓存命中率高；打散之后几乎每次都要去显存取。这张噪声纹理故意没有 mipmap，mipmap 本身就是改善缓存的手段。\n- **顶点数**：环面结的顶点完全由 `gl_VertexID` 生成。顶点过多、三角形比像素还小时，光栅化效率也会下降。\n\n```glsl\nfor (int i = 0; i < uIter; i++) {\n  q += 0.22 / (1.0 + fi * 0.35) * sin(q.yx * (1.6 + fi * 0.21) + ...);\n}\n```\n\n## 分辨率：最有效的旋钮\n\n`resolution scale` 先渲染到较小的离屏缓冲，再用 `blitFramebuffer` 放大。缩放 0.5 意味着像素只有四分之一，所有片元开销同时降到四分之一。高分屏上的游戏几乎都这么做。\n\n## 专业工具\n\n- **Chrome DevTools → Performance**：看 CPU 主线程和 GPU 进程的时间线，找出卡顿帧。\n- **[Spector.js](https://spector.babylonjs.com/)**：抓取一帧 WebGL 的全部调用、状态和中间纹理。\n- **WebGPU `timestamp-query`**：在计算或渲染 pass 的开始和结束写时间戳，精确到每个 pass。\n\n> 在软件 GPU（如 SwiftShader）上，数字会比真实显卡大几十倍，但**相对变化**依然有意义：哪个旋钮让时间翻倍，哪个就是瓶颈。",
+    "en": "## Measure before you optimise\n\nA GPU is a pipeline: vertex processing, rasterisation, fragment shading, writing to the framebuffer. The frame runs at the speed of its **slowest stage**, so before optimising you find the bottleneck: turn one knob and see whether the time moves.\n\n## Reading GPU time\n\n`performance.now()` in JS only measures how long it took to submit commands. `EXT_disjoint_timer_query_webgl2` lets the GPU time itself:\n\n```js\ngl.beginQuery(ext.TIME_ELAPSED_EXT, q);\n// ... all the drawing ...\ngl.endQuery(ext.TIME_ELAPSED_EXT);\n// a few frames later:\nif (gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) ns = gl.getQueryParameter(q, gl.QUERY_RESULT);\n```\n\nResults arrive asynchronously, a few frames later, and if `GPU_DISJOINT_EXT` is true (the GPU changed clock speed, say) the result is discarded. Without the extension the example falls back to the rAF frame delta, but vsync pins that at 16.7 ms, so it only shows a difference once frames are dropped.\n\n## Four kinds of cost\n\n- **Fill rate and overdraw**: every extra full-screen blended layer shades every pixel again and reads and writes the framebuffer again. Particles, translucent UI and volumetric fog are big overdraw sources.\n- **Fragment ALU**: `ALU iterations` sets the loop count per pixel. Pixels times work per pixel grows very fast.\n- **Texture bandwidth**: `texture taps` is samples per pixel and `texture spread` scatters them. When neighbouring pixels read neighbouring texels, the cache hits; scattered reads go to video memory almost every time. The noise texture deliberately has no mipmaps, which exist partly to keep sampling cache-friendly.\n- **Vertex count**: the torus knot is generated entirely from `gl_VertexID`. With too many vertices, and triangles smaller than pixels, rasterisation becomes inefficient too.\n\n```glsl\nfor (int i = 0; i < uIter; i++) {\n  q += 0.22 / (1.0 + fi * 0.35) * sin(q.yx * (1.6 + fi * 0.21) + ...);\n}\n```\n\n## Resolution: the most effective knob\n\n`resolution scale` renders into a smaller offscreen buffer and enlarges it with `blitFramebuffer`. A scale of 0.5 means a quarter of the pixels, which cuts every per-fragment cost to a quarter at once. Almost every game on a high-DPI screen does this.\n\n## Professional tools\n\n- **Chrome DevTools → Performance**: a timeline of the main thread and the GPU process, for finding slow frames.\n- **[Spector.js](https://spector.babylonjs.com/)**: captures every WebGL call, state change and intermediate texture of one frame.\n- **WebGPU `timestamp-query`**: writes timestamps at the start and end of compute or render passes, for timing each pass.\n\n> On a software GPU (such as SwiftShader) the numbers are tens of times higher than on real hardware, but the **relative changes** still matter: whichever knob doubles the time is your bottleneck."
+  },
+  "keyApis": [
+    "EXT_disjoint_timer_query_webgl2",
+    "gl.beginQuery",
+    "gl.getQueryParameter",
+    "gl.blitFramebuffer",
+    "gl.renderbufferStorage",
+    "gl.blendFunc",
+    "gl_VertexID",
+    "timestamp-query"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 overdraw layers 从 6 调到 24，再把 resolution scale 调到 0.5，比较两次 GPU 时间的变化。",
+      "关掉 draw layers，只把 vertices 调到 3.1M，看顶点开销在总时间里占多少。",
+      "把 texture taps 调到 16，然后把 spread 从 1 拉到 64：采样次数没变，时间为什么变了？"
+    ],
+    "en": [
+      "Raise overdraw layers from 6 to 24, then set resolution scale to 0.5, and compare the GPU time each time.",
+      "Turn off draw layers and set vertices to 3.1M to see how much of the frame is vertex work.",
+      "Set texture taps to 16, then drag spread from 1 to 64. The number of samples is the same, so why does the time change?"
+    ]
+  }
+}

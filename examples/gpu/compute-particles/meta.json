@@ -1,0 +1,47 @@
+{
+  "slug": "compute-particles",
+  "order": 5,
+  "difficulty": "intermediate",
+  "requires": "webgpu",
+  "tags": [
+    "webgpu",
+    "compute-shader",
+    "particles",
+    "instancing",
+    "additive-blending"
+  ],
+  "title": {
+    "zh": "GPU 粒子：计算 + 实例化",
+    "en": "Compute Particles"
+  },
+  "summary": {
+    "zh": "十几万个粒子完全在 GPU 上模拟：计算 pass 原地更新存储缓冲，渲染 pass 直接从同一缓冲读取并实例化绘制。",
+    "en": "130k+ particles simulated entirely on the GPU: a compute pass updates a storage buffer in place and a render pass draws instanced quads straight from it."
+  },
+  "concepts": {
+    "zh": "## 数据从不离开 GPU\n\n每个粒子是 16 字节的结构体：位置和速度各一个 `vec2f`。所有粒子放在一个**存储缓冲**里。每一帧：\n\n1. 计算 pass：每个线程负责一个粒子，读出、积分、写回；\n2. 渲染 pass：顶点着色器按 `instance_index` 从同一个缓冲读取位置，画一个小方块。\n\nCPU 只负责每帧写几十字节的 uniform（鼠标位置、时间步长等），十几万粒子的状态从不往返。\n\n## 一个线程一个粒子\n\n```wgsl\n@compute @workgroup_size(256)\nfn simulate(@builtin(workgroup_id) wg : vec3u,\n            @builtin(local_invocation_index) lid : u32) {\n  let i = wg.x * 256u + lid;      // 等价于 global_invocation_id.x\n  if (i >= S.count) { return; }\n  var p = particles[i];\n  p.vel = (p.vel + acc * S.dt) * pow(S.damping, S.dt * 60.0);\n  p.pos += p.vel * S.dt;\n  particles[i] = p;\n}\n```\n\n`wg.x * 256u + lid` 就是全局线程编号，和 `@builtin(global_invocation_id)` 的 `.x` 一模一样。因为每个线程只读写自己的元素，原地更新是安全的；如果要读邻居（比如粒子间碰撞），就需要两个缓冲轮流读写。\n\n## 同一个缓冲，两种视图\n\n计算管线把缓冲声明为 `read_write`，渲染管线声明为 `read`。同一块内存创建两个绑定组即可，WebGPU 会在两个 pass 之间自动插入必要的同步。\n\n## 实例化绘制\n\n`pass.draw(6, count)`：每个实例 6 个顶点（两个三角形），共 `count` 个实例。顶点着色器用 `vertex_index` 选方块的角，用 `instance_index` 选粒子。一次绘制调用就画出所有粒子。\n\n## 加法混合\n\n片元输出很暗的颜色，混合模式设为 `src + dst`。粒子密集处颜色叠加发光，而且与绘制顺序无关，不需要排序。颜色由速度决定：慢的偏靛蓝，快的偏琥珀到白色。\n\n## 节奏控制\n\n时间步长 `dt` 限制在 1/30 秒以内，防止卡顿后粒子“飞出去”。在途帧数用 `onSubmittedWorkDone` 限制在 2 帧，避免 GPU 跟不上时命令无限堆积、延迟越来越大。",
+    "en": "## The data never leaves the GPU\n\nEach particle is a 16-byte struct: a `vec2f` position and a `vec2f` velocity. All of them live in one **storage buffer**. Every frame:\n\n1. a compute pass gives each thread one particle to read, integrate and write back;\n2. a render pass reads positions from the same buffer by `instance_index` in the vertex shader and draws a small quad.\n\nThe CPU writes only a few dozen bytes of uniforms per frame (mouse position, time step and so on). The state of 130k particles never makes a round trip.\n\n## One thread, one particle\n\n```wgsl\n@compute @workgroup_size(256)\nfn simulate(@builtin(workgroup_id) wg : vec3u,\n            @builtin(local_invocation_index) lid : u32) {\n  let i = wg.x * 256u + lid;      // same as global_invocation_id.x\n  if (i >= S.count) { return; }\n  var p = particles[i];\n  p.vel = (p.vel + acc * S.dt) * pow(S.damping, S.dt * 60.0);\n  p.pos += p.vel * S.dt;\n  particles[i] = p;\n}\n```\n\n`wg.x * 256u + lid` is the global thread index, identical to the `.x` of `@builtin(global_invocation_id)`. Because each thread reads and writes only its own element, updating in place is safe. If you needed neighbours (for collisions, say), you would ping-pong between two buffers.\n\n## One buffer, two views\n\nThe compute pipeline declares the buffer `read_write`; the render pipeline declares it `read`. Create two bind groups over the same memory and WebGPU inserts the necessary synchronisation between the passes.\n\n## Instanced drawing\n\n`pass.draw(6, count)` means 6 vertices per instance (two triangles) and `count` instances. The vertex shader picks the quad corner with `vertex_index` and the particle with `instance_index`. One draw call renders every particle.\n\n## Additive blending\n\nThe fragment shader outputs a very dim colour and the blend mode is `src + dst`. Dense regions add up and glow, and the result does not depend on draw order, so no sorting is needed. Colour comes from speed: slow particles are indigo, fast ones amber to white.\n\n## Pacing\n\nThe time step `dt` is capped at 1/30 s so particles do not shoot off after a hitch. Frames in flight are capped at two with `onSubmittedWorkDone`, so when the GPU falls behind, commands do not pile up and latency does not keep growing."
+  },
+  "keyApis": [
+    "var<storage, read_write>",
+    "@builtin(instance_index)",
+    "pass.dispatchWorkgroups",
+    "pass.draw(6, count)",
+    "device.createComputePipeline",
+    "blend: one + one",
+    "device.queue.writeBuffer",
+    "device.queue.onSubmittedWorkDone"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 count 调到 1M，看帧率能否保持；再把 point size 调大，观察填充率的影响。",
+      "把 swirl 设为负数，粒子会反向旋转；按住鼠标试试更强的吸引。",
+      "在计算着色器里改用 @builtin(global_invocation_id) gid，用 gid.x 作为粒子下标。"
+    ],
+    "en": [
+      "Push count to 1M and see whether the frame rate holds; then raise point size and watch fill rate bite.",
+      "Make swirl negative to reverse the orbit, and hold the mouse button for a stronger pull.",
+      "Use @builtin(global_invocation_id) gid in the compute shader and index particles with gid.x."
+    ]
+  }
+}

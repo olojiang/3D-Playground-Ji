@@ -1,0 +1,48 @@
+{
+  "slug": "image-compute",
+  "order": 10,
+  "difficulty": "advanced",
+  "requires": "webgpu",
+  "tags": [
+    "webgpu",
+    "compute-shader",
+    "image-processing",
+    "shared-memory",
+    "storage-texture"
+  ],
+  "title": {
+    "zh": "计算着色器做图像处理",
+    "en": "Image Processing with Compute"
+  },
+  "summary": {
+    "zh": "用 WebGPU 计算着色器做模糊、边缘检测和调色：工作组先把图块连同边框载入共享内存，同步后再从共享内存滤波。",
+    "en": "Blur, edge detection and colour grading with WebGPU compute: each workgroup loads its tile plus a halo into shared memory, syncs at a barrier, then filters from there."
+  },
+  "concepts": {
+    "zh": "## 图像就是二维数组\n\n源图像上传到一张普通纹理（`copyExternalImageToTexture`），结果写进一张**存储纹理**（`texture_storage_2d<rgba8unorm, write>`），计算着色器用 `textureStore` 按像素写入。一个 16×16 的工作组负责一个 16×16 的图块，`dispatchWorkgroups(64, 40)` 覆盖 1024×640 的图片。程序启动时先用 `copyTextureToTexture` 把原图拷进输出纹理，所以管线还在编译时，右半边也不是黑的。\n\n## 线程坐标\n\n```wgsl\nfn pixel(wg : vec2u, lid : u32) -> vec2u {\n  return wg * TILE + vec2u(lid % TILE, lid / TILE);\n}\n```\n\n工作组位置乘以 16，加上组内坐标，等价于 `global_invocation_id.xy`。这里的除法和取模都是对常量 `TILE`。\n\n## 共享内存与图块\n\n9×9 的模糊每个像素要读 81 个邻居。直接读纹理，相邻线程会把同一个纹素读很多遍。更好的做法是：\n\n1. 工作组里的 256 个线程一起把 (16+2·4)² = 576 个纹素（图块加上四周 4 像素的“光环”）搬进 `var<workgroup>` 共享内存；\n2. `workgroupBarrier()` 等所有线程搬完；\n3. 每个线程只从快速的共享内存读邻居。\n\n```wgsl\nvar<workgroup> tile : array<vec4f, 576>;\nfor (var i = lid; i < SIDE * SIDE; i += TILE * TILE) { tile[i] = textureLoad(src, ...); }\nworkgroupBarrier();\n```\n\n注意：越界检查的 `return` 必须放在 barrier **之后**。barrier 要求组内所有线程都到达，提前返回的线程会让其他线程永远等下去（或导致未定义行为）。\n\n## 三种滤镜\n\n- **blur**：高斯核可分离，`w(dx, dy) = w1(dx) · w1(dy)`，一维权重只算一次。\n- **edges**：Sobel 算子求水平和垂直亮度梯度，按梯度方向上色。\n- **grade**：曝光、色温、对比度、饱和度、暗角。只看自己一个像素，不需要共享内存。\n\n## 只在需要时计算\n\n只有参数变化时才重新调度计算，平时每帧只是把前后两张纹理按分割线合成到画布。管线用 `createComputePipelineAsync` 按需编译，不阻塞页面。渲染循环同样用 `onSubmittedWorkDone` 把在途帧数限制在 2 帧。\n\n> 状态栏里的 “GPU frame” 是提交到完成的时间。在软件 GPU 上可能要上千毫秒，看起来比 JS 还慢；真实显卡上同样的滤镜通常只要零点几毫秒。",
+    "en": "## An image is a 2D array\n\nThe source image is uploaded into an ordinary texture (`copyExternalImageToTexture`), and results go into a **storage texture** (`texture_storage_2d<rgba8unorm, write>`) that the compute shader writes per pixel with `textureStore`. One 16×16 workgroup handles one 16×16 tile, so `dispatchWorkgroups(64, 40)` covers the 1024×640 image. At startup, `copyTextureToTexture` copies the source into the output texture, so the \"after\" half is not black while pipelines compile.\n\n## Thread coordinates\n\n```wgsl\nfn pixel(wg : vec2u, lid : u32) -> vec2u {\n  return wg * TILE + vec2u(lid % TILE, lid / TILE);\n}\n```\n\nThe workgroup position times 16 plus the position inside the group: the same as `global_invocation_id.xy`. The division and modulo are by the constant `TILE`.\n\n## Shared memory and tiles\n\nA 9×9 blur reads 81 neighbours per pixel. Reading them straight from the texture means neighbouring threads fetch the same texels over and over. The better way:\n\n1. the 256 threads of a workgroup together copy (16+2·4)² = 576 texels (the tile plus a 4-pixel \"halo\" around it) into `var<workgroup>` shared memory;\n2. `workgroupBarrier()` waits until every thread has finished copying;\n3. each thread reads its neighbours from fast shared memory only.\n\n```wgsl\nvar<workgroup> tile : array<vec4f, 576>;\nfor (var i = lid; i < SIDE * SIDE; i += TILE * TILE) { tile[i] = textureLoad(src, ...); }\nworkgroupBarrier();\n```\n\nNote that the bounds-check `return` must come **after** the barrier. A barrier needs every thread in the group to reach it; a thread that returns early leaves the others waiting forever (or triggers undefined behaviour).\n\n## Three filters\n\n- **blur**: a Gaussian kernel is separable, `w(dx, dy) = w1(dx) · w1(dy)`, so the 1D weights are computed once.\n- **edges**: the Sobel operator measures horizontal and vertical brightness gradients and colours them by direction.\n- **grade**: exposure, temperature, contrast, saturation and vignette. It only looks at its own pixel, so it needs no shared memory.\n\n## Compute only when needed\n\nThe compute pass is dispatched only when a parameter changes; otherwise each frame just composites the before and after textures around the split line. Pipelines compile on demand with `createComputePipelineAsync`, without blocking the page. The render loop again uses `onSubmittedWorkDone` to keep at most two frames in flight.\n\n> \"GPU frame\" in the status line is the time from submit to completion. On a software GPU it can reach a second or more and look slower than JS; on a real graphics card the same filter usually takes well under a millisecond."
+  },
+  "keyApis": [
+    "var<workgroup>",
+    "workgroupBarrier",
+    "texture_storage_2d",
+    "textureLoad",
+    "textureStore",
+    "device.queue.copyExternalImageToTexture",
+    "encoder.copyTextureToTexture",
+    "device.createComputePipelineAsync",
+    "pass.dispatchWorkgroups(x, y)"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 blur 的 sigma 调到 4，再把 R 改大（比如 6），看共享内存的光环需要多大。",
+      "把三个入口函数的参数换成 @builtin(global_invocation_id) gid，用 gid.xy 作为像素坐标（loadTile 仍需要 workgroup_id）。",
+      "写一个新的 grade 效果，比如把 luma 量化成 4 级做海报化，加到 filter 列表里。"
+    ],
+    "en": [
+      "Push blur sigma to 4, then enlarge R (say, to 6) and see how big the shared-memory halo must be.",
+      "Give the entry points @builtin(global_invocation_id) gid and use gid.xy as the pixel coordinate (loadTile still needs workgroup_id).",
+      "Write a new grade effect, such as posterising luma into 4 levels, and add it to the filter list."
+    ]
+  }
+}

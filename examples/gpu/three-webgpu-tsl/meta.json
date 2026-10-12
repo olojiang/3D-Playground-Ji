@@ -1,0 +1,49 @@
+{
+  "slug": "three-webgpu-tsl",
+  "order": 9,
+  "difficulty": "intermediate",
+  "requires": "webgpu",
+  "tags": [
+    "three",
+    "webgpu-renderer",
+    "tsl",
+    "node-material",
+    "compute"
+  ],
+  "title": {
+    "zh": "three.js WebGPURenderer 与 TSL",
+    "en": "three.js WebGPURenderer & TSL"
+  },
+  "summary": {
+    "zh": "用 TSL 在 JavaScript 里搭建着色器节点图：同一个材质在 WebGPU 上编译成 WGSL，在 WebGL 2 后备上编译成 GLSL，再加一个计算节点驱动粒子。",
+    "en": "Build shader node graphs in JavaScript with TSL: one material compiles to WGSL on WebGPU and to GLSL on the WebGL 2 fallback, plus a compute node driving particles."
+  },
+  "concepts": {
+    "zh": "## WebGPURenderer\n\n`import * as THREE from \"three/webgpu\"` 提供新的 `WebGPURenderer`。它是异步初始化的，要先 `await renderer.init()`。如果浏览器不支持 WebGPU（或拿不到 adapter），它会**自动退回 WebGL 2 后端**，场景代码一行都不用改。状态栏会显示当前实际使用的后端；把 `FORCE_WEBGL` 设为 `true` 可以主动体验后备路径。\n\n## TSL：用函数调用写着色器\n\nTSL（Three Shading Language）不是字符串，而是一棵用 JS 函数搭出来的**节点图**。three.js 再把它编译成目标语言：WebGPU 上是 WGSL，WebGL 2 上是 GLSL。\n\n```js\nconst noise = mx_noise_float(positionLocal.mul(uFreq).add(vec3(0, t, t.mul(0.5))));\nblobMat.positionNode = positionLocal.add(normalLocal.mul(noise.mul(uAmp)));\nblobMat.colorNode = palette(noise.mul(0.35).add(uHue));\n```\n\n运算写成方法链：`.mul()`、`.add()`；`Fn()` 定义可复用的着色器函数。\n\n## 节点材质\n\n`MeshPhysicalNodeMaterial` 是完整的 PBR 材质，你只替换其中几个“插槽”：\n\n- `positionNode`：顶点阶段，这里沿法线做噪声位移；\n- `colorNode`：基础色，这里用余弦调色板；\n- `emissiveNode`：自发光，这里用菲涅尔项做发光的边缘。\n\n光照、透明涂层、色调映射照常由 three.js 负责。\n\n## Uniform 节点\n\n`uniform(0.22)` 返回一个节点，它的 `.value` 在 JS 里随时可改，每帧自动上传。GUI 滑块直接改这些值，不需要重新编译着色器。\n\n## 计算节点\n\n```js\nconst positions = instancedArray(init, \"vec3\");\nconst orbit = Fn(() => {\n  const p = positions.element(instanceIndex);\n  p.assign(/* rotated p */);\n})().compute(COUNT);\nrenderer.compute(orbit);\n```\n\n`instancedArray` 是一个存储缓冲，`.compute(COUNT)` 生成每个粒子一次调用的计算着色器。同一个缓冲用 `toAttribute()` 交给精灵材质作为每实例位置，数据不经过 CPU。\n\n> 如果检测到软件 adapter（如 SwiftShader），示例会跳过每帧的计算 pass：软件模拟的计算太慢。粒子仍会显示，只是不再旋转。",
+    "en": "## WebGPURenderer\n\n`import * as THREE from \"three/webgpu\"` gives you the new `WebGPURenderer`. It initialises asynchronously, so call `await renderer.init()` first. If the browser has no WebGPU (or no adapter), it **falls back to its WebGL 2 backend automatically**, and the scene code does not change at all. The status line shows which backend is actually in use; set `FORCE_WEBGL` to `true` to try the fallback path on purpose.\n\n## TSL: shaders as function calls\n\nTSL (Three Shading Language) is not a string. It is a **node graph** assembled from JavaScript calls, which three.js compiles to the target language: WGSL on WebGPU, GLSL on WebGL 2.\n\n```js\nconst noise = mx_noise_float(positionLocal.mul(uFreq).add(vec3(0, t, t.mul(0.5))));\nblobMat.positionNode = positionLocal.add(normalLocal.mul(noise.mul(uAmp)));\nblobMat.colorNode = palette(noise.mul(0.35).add(uHue));\n```\n\nOperations are method chains such as `.mul()` and `.add()`, and `Fn()` defines a reusable shader function.\n\n## Node materials\n\n`MeshPhysicalNodeMaterial` is a complete PBR material in which you replace only a few slots:\n\n- `positionNode`: the vertex stage, here a noise displacement along the normal;\n- `colorNode`: the base colour, here a cosine palette;\n- `emissiveNode`: emission, here a Fresnel term for a glowing rim.\n\nLighting, clearcoat and tone mapping are still handled by three.js.\n\n## Uniform nodes\n\n`uniform(0.22)` returns a node whose `.value` you can change from JS at any time; it is uploaded every frame. The GUI sliders change these values directly, with no shader recompilation.\n\n## Compute nodes\n\n```js\nconst positions = instancedArray(init, \"vec3\");\nconst orbit = Fn(() => {\n  const p = positions.element(instanceIndex);\n  p.assign(/* rotated p */);\n})().compute(COUNT);\nrenderer.compute(orbit);\n```\n\n`instancedArray` is a storage buffer, and `.compute(COUNT)` builds a compute shader with one invocation per particle. The same buffer goes to the sprite material through `toAttribute()` as a per-instance position, so the data never visits the CPU.\n\n> When a software adapter (such as SwiftShader) is detected, the example skips the per-frame compute pass, because emulated compute is too slow. The particles still render; they just stop orbiting."
+  },
+  "keyApis": [
+    "THREE.WebGPURenderer",
+    "renderer.init",
+    "MeshPhysicalNodeMaterial",
+    "Fn",
+    "uniform",
+    "mx_noise_float",
+    "positionNode",
+    "instancedArray",
+    "renderer.compute",
+    "SpriteNodeMaterial"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 FORCE_WEBGL 改成 true，确认状态栏显示 WebGL 2 后端，画面几乎一样。",
+      "把 colorNode 换成 vec3(noise.mul(0.5).add(0.5))，直接看噪声的灰度值。",
+      "把 emissiveNode 里的 pow 指数从 3.0 改成 1.0，边缘光会怎样变化？"
+    ],
+    "en": [
+      "Set FORCE_WEBGL to true: the status line shows the WebGL 2 backend and the picture looks almost the same.",
+      "Replace colorNode with vec3(noise.mul(0.5).add(0.5)) to see the raw noise in grey.",
+      "Change the pow exponent in emissiveNode from 3.0 to 1.0. How does the rim glow change?"
+    ]
+  }
+}

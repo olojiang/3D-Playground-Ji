@@ -1,0 +1,49 @@
+{
+  "slug": "compute-basics",
+  "order": 4,
+  "difficulty": "intermediate",
+  "requires": "webgpu",
+  "tags": [
+    "webgpu",
+    "compute-shader",
+    "storage-buffer",
+    "workgroup",
+    "readback"
+  ],
+  "title": {
+    "zh": "计算着色器入门",
+    "en": "Compute Shader Basics"
+  },
+  "summary": {
+    "zh": "第一个 WebGPU 计算着色器：存储缓冲进出、工作组与调度、把结果读回 CPU，并与 JS 循环对比。",
+    "en": "Your first WebGPU compute shader: storage buffers in and out, workgroups and dispatch, reading results back on the CPU, and a race against a JS loop."
+  },
+  "concepts": {
+    "zh": "## 不画图的着色器\n\n计算着色器（`@compute`）没有顶点和像素的概念，它只是“对一百万个元素各跑一次函数”。输入输出都是**存储缓冲**（storage buffer）：`var<storage, read>` 只读，`var<storage, read_write>` 可写。\n\n## 工作组与调度\n\n`@workgroup_size(64)` 表示一个**工作组**有 64 个线程；JS 端 `dispatchWorkgroups(Math.ceil(n / 64))` 决定启动多少个工作组。100 万个元素就是 16384 个工作组。工作组大小一般取 32 或 64 的倍数，正好填满硬件的 warp。\n\n## 线程编号：三种内置变量\n\n每个线程要知道自己负责哪个元素。这个例子这样计算全局下标：\n\n```wgsl\nfn main(@builtin(workgroup_id) wg : vec3u,\n        @builtin(local_invocation_index) lid : u32) {\n  let i = wg.x * 64u + lid;\n  if (i >= P.n) { return; }\n  output[i] = sin(input[i] * P.freq + P.phase) * exp(-input[i] * P.decay);\n}\n```\n\n- `workgroup_id`：第几个工作组；\n- `local_invocation_index`：组内第几个线程（0…63）；\n- `global_invocation_id`：两者合起来的全局编号，即 `workgroup_id * workgroup_size + local_invocation_id`。\n\n所以 `wg.x * 64u + lid` 与 `global_invocation_id.x` 完全等价。这里把它拆开写，是为了看清三者的关系（也能绕开一些软件 GPU 的兼容问题）。最后一个工作组可能有多余线程，所以要做越界检查。\n\n## 把结果读回来\n\nGPU 内存不能被 JS 直接读取。流程是：计算结果拷贝到一个带 `MAP_READ` 用途的**暂存缓冲**，`await staging.mapAsync(GPUMapMode.READ)` 等 GPU 完成，再用 `getMappedRange()` 读取，最后 `unmap()`。读回会强制 CPU 等 GPU，开销不小，所以真实应用尽量让数据留在 GPU 上。\n\n## 同一个缓冲，算完就画\n\n渲染循环里，计算 pass 写 `output`，紧接着的渲染 pass 在顶点着色器里读它画柱状图，全程不经过 CPU。WebGPU 会自动保证两个 pass 的先后顺序；在途帧数用 `onSubmittedWorkDone` 限制在 2 帧以内。\n\n> 点 `run benchmark` 会对比“GPU 调度 + 读回”和 JS 循环。在软件 GPU（如测试环境里的 SwiftShader）上，GPU 可能显得比 JS 还慢；在真实显卡上，计算本身快得多，读回才是主要开销。",
+    "en": "## A shader that draws nothing\n\nA compute shader (`@compute`) has no notion of vertices or pixels. It simply runs a function once for each of, say, a million elements. Inputs and outputs are **storage buffers**: `var<storage, read>` is read-only and `var<storage, read_write>` is writable.\n\n## Workgroups and dispatch\n\n`@workgroup_size(64)` means one **workgroup** holds 64 threads, and `dispatchWorkgroups(Math.ceil(n / 64))` in JS decides how many workgroups to launch. A million elements means 16384 workgroups. Workgroup sizes are usually multiples of 32 or 64, which fill a hardware warp exactly.\n\n## Thread IDs: three built-ins\n\nEach thread has to know which element it owns. This example computes the global index like this:\n\n```wgsl\nfn main(@builtin(workgroup_id) wg : vec3u,\n        @builtin(local_invocation_index) lid : u32) {\n  let i = wg.x * 64u + lid;\n  if (i >= P.n) { return; }\n  output[i] = sin(input[i] * P.freq + P.phase) * exp(-input[i] * P.decay);\n}\n```\n\n- `workgroup_id`: which workgroup this is;\n- `local_invocation_index`: which thread inside it (0…63);\n- `global_invocation_id`: the two combined, `workgroup_id * workgroup_size + local_invocation_id`.\n\nSo `wg.x * 64u + lid` is exactly what `global_invocation_id.x` gives you. Spelling it out shows how the three relate (and sidesteps a compatibility issue on some software GPUs). The last workgroup may have spare threads, hence the bounds check.\n\n## Reading results back\n\nJavaScript cannot read GPU memory directly. Copy the output into a **staging buffer** created with `MAP_READ`, `await staging.mapAsync(GPUMapMode.READ)` until the GPU is done, read it with `getMappedRange()`, then `unmap()`. Readback forces the CPU to wait for the GPU and is expensive, so real applications keep data on the GPU whenever they can.\n\n## Compute, then draw from the same buffer\n\nIn the render loop a compute pass writes `output` and the render pass right after it reads that buffer in the vertex shader to draw the bar chart, with no CPU round trip. WebGPU orders the two passes for you, and `onSubmittedWorkDone` keeps at most two frames in flight.\n\n> `run benchmark` compares \"GPU dispatch + readback\" with a JS loop. On a software GPU (such as SwiftShader in test environments) the GPU can look slower than JS; on a real graphics card the compute itself is far faster and the readback is the main cost."
+  },
+  "keyApis": [
+    "@compute",
+    "@workgroup_size",
+    "@builtin(workgroup_id)",
+    "@builtin(local_invocation_index)",
+    "var<storage, read_write>",
+    "device.createComputePipeline",
+    "pass.dispatchWorkgroups",
+    "encoder.copyBufferToBuffer",
+    "buffer.mapAsync",
+    "GPUMapMode.READ"
+  ],
+  "tryThis": {
+    "zh": [
+      "把下标计算换成 @builtin(global_invocation_id) gid，并用 gid.x 代替 wg.x * 64u + lid，结果应该完全一样。",
+      "把 WG 改成 256，重新跑 benchmark，看工作组数量和耗时怎么变化。",
+      "把公式换成你自己的函数（比如 x * x），柱状图会跟着改变。"
+    ],
+    "en": [
+      "Swap the index for @builtin(global_invocation_id) gid and use gid.x instead of wg.x * 64u + lid: the results should be identical.",
+      "Change WG to 256, rerun the benchmark and watch the workgroup count and timing.",
+      "Replace the formula with your own function (such as x * x) and watch the bar chart follow."
+    ]
+  }
+}
