@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
-export const SESSION_COOKIE = "pj_session";
+export const SESSION_COOKIE = "tp_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
 function secret() {
