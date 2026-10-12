@@ -1,0 +1,47 @@
+{
+  "slug": "instancing",
+  "order": 9,
+  "difficulty": "intermediate",
+  "requires": "webgl",
+  "tags": [
+    "instancing",
+    "performance",
+    "draw-calls",
+    "instancedmesh"
+  ],
+  "title": {
+    "zh": "实例化渲染",
+    "en": "Instancing"
+  },
+  "summary": {
+    "zh": "用 InstancedMesh 一次绘制调用画出 3 万个方块，并和“一个物体一个网格”的做法对比绘制调用数。",
+    "en": "Draw 30,000 boxes in a single draw call with InstancedMesh, and compare draw calls against one mesh per object."
+  },
+  "concepts": {
+    "zh": "## 瓶颈常常不是三角形，而是绘制调用\n\n每个普通 `Mesh` 渲染时，CPU 都要向 GPU 发出一次**绘制调用**（draw call）：切换着色器、上传矩阵和材质参数、提交命令。几千次调用之后，CPU 就成了瓶颈，哪怕每个物体只有 12 个三角形。\n\n## InstancedMesh：一份几何体，画 N 次\n\n如果许多物体共享**同一个几何体和同一个材质**，只是位置、旋转、缩放、颜色不同，就可以用 `InstancedMesh`：\n\n```js\nconst mesh = new THREE.InstancedMesh(geometry, material, count);\ndummy.position.set(x, y, z);\ndummy.updateMatrix();\nmesh.setMatrixAt(i, dummy.matrix);\nmesh.instanceMatrix.needsUpdate = true;\n```\n\nGPU 收到一次绘制调用，外加一个存放所有实例矩阵的缓冲区（`instanceMatrix`），着色器根据 `gl_InstanceID` 取出各自的矩阵。\n\n## 每个实例的数据\n\n- `setMatrixAt(i, matrix)`：写入第 i 个实例的变换。常见做法是用一个不加入场景的 `Object3D`（dummy）设置位置旋转缩放，再调用 `updateMatrix()` 取它的矩阵。\n- `setColorAt(i, color)`：每个实例一种颜色，会和材质颜色相乘。\n- 修改后要设置 `instanceMatrix.needsUpdate` / `instanceColor.needsUpdate`。每帧都改的话，用 `setUsage(THREE.DynamicDrawUsage)`。\n\n## 读懂 renderer.info\n\n`renderer.info.render.calls` 是上一次 `render()` 的绘制调用数，`triangles` 是三角形数。状态栏实时显示它们：instanced 模式下 calls 只有 1，而 separate meshes 模式下（上限 4000 个）calls 等于物体数量，CPU 时间明显更高——即使画的三角形更少。\n\n## 注意事项\n\n- 实例共享材质，不能各自用不同的材质类型或贴图（颜色、矩阵之外的差异需要自定义属性）。\n- 视锥剔除以整个 InstancedMesh 为单位。实例在运动时包围球会过期，示例直接设置 `frustumCulled = false`；也可以调用 `computeBoundingSphere()`。\n- 每帧在 JS 里更新几万个矩阵本身也有成本；真正海量的动画可以把运动挪到顶点着色器里计算。\n\n> 把 count 拉到 100000，再切换两种模式，比较状态栏里的 CPU 毫秒数。",
+    "en": "## The bottleneck is often draw calls, not triangles\n\nFor every ordinary `Mesh`, the CPU issues a **draw call** to the GPU: bind a shader, upload matrices and material values, submit the command. After a few thousand of those the CPU becomes the bottleneck, even if each object is only 12 triangles.\n\n## InstancedMesh: one geometry, drawn N times\n\nWhen many objects share **the same geometry and the same material** and differ only in position, rotation, scale or colour, use `InstancedMesh`:\n\n```js\nconst mesh = new THREE.InstancedMesh(geometry, material, count);\ndummy.position.set(x, y, z);\ndummy.updateMatrix();\nmesh.setMatrixAt(i, dummy.matrix);\nmesh.instanceMatrix.needsUpdate = true;\n```\n\nThe GPU receives one draw call plus a buffer holding every instance matrix (`instanceMatrix`); the shader fetches its own matrix using `gl_InstanceID`.\n\n## Per-instance data\n\n- `setMatrixAt(i, matrix)`: writes instance i's transform. The usual pattern is an `Object3D` that is never added to the scene (the dummy): set its position, rotation and scale, call `updateMatrix()`, and copy its matrix.\n- `setColorAt(i, color)`: one colour per instance, multiplied with the material colour.\n- After changes, set `instanceMatrix.needsUpdate` / `instanceColor.needsUpdate`. If you change them every frame, use `setUsage(THREE.DynamicDrawUsage)`.\n\n## Reading renderer.info\n\n`renderer.info.render.calls` is the number of draw calls in the last `render()` and `triangles` the triangle count. The status line shows them live: in instanced mode calls is 1, while in separate-meshes mode (capped at 4,000) calls equals the object count and CPU time is clearly higher, even with fewer triangles.\n\n## Caveats\n\n- Instances share one material, so they cannot use different material types or textures (anything beyond matrix and colour needs custom attributes).\n- Frustum culling works on the whole InstancedMesh. Moving instances make its bounding sphere stale, so the demo sets `frustumCulled = false`; calling `computeBoundingSphere()` is the alternative.\n- Updating tens of thousands of matrices in JS every frame has its own cost; for truly massive animation, move the motion into the vertex shader.\n\n> Push count to 100,000, switch between the two modes, and compare the CPU milliseconds in the status line."
+  },
+  "keyApis": [
+    "THREE.InstancedMesh",
+    "instancedMesh.setMatrixAt",
+    "instancedMesh.setColorAt",
+    "instanceMatrix.needsUpdate",
+    "THREE.DynamicDrawUsage",
+    "Object3D.updateMatrix",
+    "renderer.info.render"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 BoxGeometry 换成 IcosahedronGeometry(1, 1)，观察三角形数量和帧率的变化。",
+      "把 count 设为 4000，比较两种模式下 draw calls 和 CPU 时间。",
+      "在循环里也调用 setColorAt，让颜色随波浪高度变化（记得设置 instanceColor.needsUpdate）。",
+      "删掉 instanceMatrix.needsUpdate = true 这一行，看看画面会怎样。"
+    ],
+    "en": [
+      "Swap BoxGeometry for IcosahedronGeometry(1, 1) and watch the triangle count and frame rate.",
+      "Set count to 4000 and compare draw calls and CPU time in both modes.",
+      "Call setColorAt inside the loop so colour follows wave height (remember instanceColor.needsUpdate).",
+      "Delete the instanceMatrix.needsUpdate = true line and see what happens."
+    ]
+  }
+}

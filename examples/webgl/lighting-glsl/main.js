@@ -13,7 +13,7 @@ renderer.debug.onShaderError = (gl, program, vs, fs) =>
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#0b0b12");
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.set(0, 1.2, 6.5);
+camera.position.set(0, 1.2, 7.2);
 
 const vertexShader = /* glsl */ `
 out vec3 vNormal;    // world-space normal
@@ -61,7 +61,7 @@ void main() {
   if (uModel == 3) {
     // Fresnel-style rim: surfaces seen edge-on glow
     float rim = pow(1.0 - max(dot(N, V), 0.0), uRimPower);
-    color += uRimColor * rim;
+    color += uRimColor * rim * 0.7;
   }
   fragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);   // gamma-encode for the screen
 }`;
@@ -73,7 +73,7 @@ const uniforms = {
   uAlbedo: { value: new THREE.Color("#c9a227") },
   uAmbient: { value: new THREE.Color("#1d1d33") },
   uShininess: { value: 24 },
-  uRimPower: { value: 2.5 },
+  uRimPower: { value: 3.5 },
   uRimColor: { value: new THREE.Color("#7c5cff") },
 };
 const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, glslVersion: THREE.GLSL3 });

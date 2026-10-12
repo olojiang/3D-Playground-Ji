@@ -32,7 +32,20 @@ const solarSystem = new THREE.Object3D();
 scene.add(solarSystem);
 
 const sun = new THREE.Mesh(new THREE.SphereGeometry(1.4, 64, 32), new THREE.MeshBasicMaterial({ color: "#ffcf5a" }));
-const glow = new THREE.Mesh(new THREE.SphereGeometry(1.75, 64, 32), new THREE.MeshBasicMaterial({ color: "#ff9a2e", transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
+// Corona: a camera-facing Sprite with a soft radial gradient, added on top (additive).
+const gc = document.createElement("canvas");
+gc.width = gc.height = 128;
+const gctx = gc.getContext("2d");
+const grad = gctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+grad.addColorStop(0.0, "rgba(255,220,140,1)");
+grad.addColorStop(0.35, "rgba(255,150,50,0.45)");
+grad.addColorStop(1.0, "rgba(255,120,30,0)");
+gctx.fillStyle = grad;
+gctx.fillRect(0, 0, 128, 128);
+const glowTex = new THREE.CanvasTexture(gc);
+glowTex.colorSpace = THREE.SRGBColorSpace;
+const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+glow.scale.setScalar(6);
 sun.add(glow);
 solarSystem.add(sun);
 solarSystem.add(new THREE.PointLight("#fff2d6", 220, 0, 2));

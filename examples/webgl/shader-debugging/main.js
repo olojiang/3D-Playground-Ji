@@ -14,7 +14,7 @@ renderer.debug.onShaderError = (gl, program, vs, fs) =>
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#0b0b12");
 const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 20);
-camera.position.set(0, 2.6, 7.5);
+camera.position.set(0, 3.4, 7.8);
 
 const vertexShader = /* glsl */ `
 out vec3 vNormal;
@@ -90,7 +90,7 @@ const shapes = [
   scene.add(m);
   return m;
 });
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 6), material);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), material);
 floor.rotation.x = -Math.PI / 2;
 floor.position.y = -0.2;
 scene.add(floor);

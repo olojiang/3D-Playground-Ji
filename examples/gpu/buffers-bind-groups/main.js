@@ -53,8 +53,9 @@ fn vs_main(v : VSIn) -> VSOut {
 
 @fragment
 fn fs_main(i : VSOut) -> @location(0) vec4f {
-  let glow = 0.55 + 0.45 * smoothstep(1.0, 0.0, i.ring);  // brighter towards the centre
-  return vec4f(i.color * glow, 1.0);
+  let glow = 0.45 + 0.55 * smoothstep(1.0, 0.0, i.ring);       // brighter towards the centre
+  let bands = 0.88 + 0.12 * cos(i.ring * 60.0 - u.time * 3.0);  // ripples moving outward
+  return vec4f(pow(i.color * glow * bands, vec3f(1.2)), 1.0);
 }`;
 
 // Build a "flower" mesh on the CPU: rings of vertices, interleaved [x, y, r, g, b, ring].

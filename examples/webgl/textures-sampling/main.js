@@ -17,10 +17,12 @@ uniform float uRepeat;
 uniform vec2 uScroll;
 out vec2 vUV;       // texture coordinates (0..1 = one copy of the texture)
 out vec2 vMaskUV;
+out float vDepth;   // distance from the camera, for fog
 void main() {
   vUV = aUV * uRepeat + uScroll;   // > 1 means the wrap mode decides what we see
   vMaskUV = aUV;
   gl_Position = uViewProjection * vec4(aPosition, 1.0);
+  vDepth = gl_Position.w;           // w = view-space depth after a perspective projection
 }`;
 const fragmentSrc = /* glsl */ `#version 300 es
 precision highp float;
@@ -28,11 +30,12 @@ uniform sampler2D uPattern;   // reads from texture unit 0
 uniform sampler2D uTint;      // reads from texture unit 1
 in vec2 vUV;
 in vec2 vMaskUV;
+in float vDepth;
 out vec4 outColor;
 void main() {
   vec3 pattern = texture(uPattern, vUV).rgb;
   vec3 tint = texture(uTint, vMaskUV).rgb;     // a smooth gradient, never repeated
-  float fog = smoothstep(0.55, 1.0, vMaskUV.y); // fade out toward the horizon
+  float fog = smoothstep(2.5, 11.0, vDepth);   // fade out toward the horizon
   vec3 c = mix(pattern * tint, vec3(0.043, 0.043, 0.07), fog);
   outColor = vec4(c, 1.0);
 }`;
@@ -51,16 +54,17 @@ gl.linkProgram(program);
 if (!gl.getProgramParameter(program, gl.LINK_STATUS)) console.error("program link error:\n" + gl.getProgramInfoLog(program));
 const loc = Object.fromEntries(["uViewProjection", "uRepeat", "uScroll", "uPattern", "uTint"].map((n) => [n, gl.getUniformLocation(program, n)]));
 
-// ---- Texture 1: a 32×32 pattern built pixel by pixel -------------------------
-const N = 32;
+// ---- Texture 1: a 64×64 pattern built pixel by pixel -------------------------
+const N = 64;
 const pixels = new Uint8Array(N * N * 4);    // RGBA, one byte per channel
 for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
   const i = (y * N + x) * 4;
-  const checker = ((x >> 3) + (y >> 3)) & 1;
-  const ring = Math.abs(Math.hypot(x - 15.5, y - 15.5) - 10) < 1.2;
-  const line = x === 0 || y === 0;
-  let c = checker ? [236, 232, 220] : [40, 38, 58];
-  if (ring) c = [232, 185, 49];
+  const checker = ((x >> 4) + (y >> 4)) & 1;
+  // Ring coverage 0..1 with a soft 1-pixel edge, so the texture itself is anti-aliased.
+  const ring = Math.min(Math.max(2.6 - Math.abs(Math.hypot(x - 31.5, y - 31.5) - 20), 0), 1);
+  const line = x < 2 || y < 2;
+  let c = checker ? [206, 202, 214] : [34, 32, 52];
+  c = c.map((v, k) => v + ([232, 185, 49][k] - v) * ring);
   if (line) c = [124, 92, 255];
   pixels.set([...c, 255], i);
 }
@@ -86,7 +90,7 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
 // ---- Geometry: a big floor quad (x, y, z, u, v) ------------------------------
-const S = 6;
+const S = 12;
 const quad = new Float32Array([-S, 0, 0, 0, 0, S, 0, 0, 1, 0, S, 0, -2 * S, 1, 1, -S, 0, 0, 0, 0, S, 0, -2 * S, 1, 1, -S, 0, -2 * S, 0, 1]);
 const vao = gl.createVertexArray();
 gl.bindVertexArray(vao);
@@ -100,12 +104,12 @@ gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 20, 12);
 // Optional anisotropic filtering (sharper at grazing angles), if the GPU offers it.
 const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
 
-const params = { minFilter: "LINEAR_MIPMAP_LINEAR", magFilter: "NEAREST", wrap: "REPEAT", repeat: 8, scroll: true, anisotropy: 1 };
+const params = { minFilter: "LINEAR_MIPMAP_LINEAR", magFilter: "LINEAR", wrap: "REPEAT", repeat: 16, scroll: true, anisotropy: 1 };
 const gui = new GUI({ title: "Parameters" });
 gui.add(params, "minFilter", ["NEAREST", "LINEAR", "NEAREST_MIPMAP_NEAREST", "LINEAR_MIPMAP_NEAREST", "LINEAR_MIPMAP_LINEAR"]).name("MIN_FILTER (far)");
 gui.add(params, "magFilter", ["NEAREST", "LINEAR"]).name("MAG_FILTER (near)");
 gui.add(params, "wrap", ["REPEAT", "MIRRORED_REPEAT", "CLAMP_TO_EDGE"]).name("WRAP_S / WRAP_T");
-gui.add(params, "repeat", 0.5, 24, 0.5).name("uv repeat");
+gui.add(params, "repeat", 0.5, 48, 0.5).name("uv repeat");
 gui.add(params, "scroll");
 if (aniso) gui.add(params, "anisotropy", 1, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT), 1);
 

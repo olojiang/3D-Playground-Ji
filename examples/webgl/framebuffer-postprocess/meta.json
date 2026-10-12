@@ -1,0 +1,47 @@
+{
+  "slug": "framebuffer-postprocess",
+  "order": 10,
+  "difficulty": "advanced",
+  "requires": "webgl2",
+  "tags": [
+    "framebuffer",
+    "render-to-texture",
+    "post-processing",
+    "instancing",
+    "blur"
+  ],
+  "title": {
+    "zh": "帧缓冲与后期处理",
+    "en": "Framebuffers & Post-processing"
+  },
+  "summary": {
+    "zh": "先把场景渲染到纹理，再用全屏着色器做模糊、色差和暗角：原生 WebGL2 的两遍渲染。",
+    "en": "Render the scene into a texture, then run a full-screen shader for blur, chromatic aberration and vignette: two-pass rendering in raw WebGL2."
+  },
+  "concepts": {
+    "zh": "## 渲染到纹理\n\n默认情况下，绘制结果直接写到画布上。**帧缓冲对象**（FBO）让你改为画进一张纹理，随后这张纹理就可以像普通贴图一样被采样。几乎所有后期效果（泛光、景深、色调映射、描边）都建立在这一步之上。\n\n```glsl\n// JS:\n// gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);\n// gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);\n```\n\n创建 FBO 的步骤：\n\n1. 创建一张空纹理：`texImage2D(..., null)` 只分配存储，不上传数据。\n2. 把它作为 `COLOR_ATTACHMENT0` 挂到帧缓冲上。\n3. 用 `gl.checkFramebufferStatus` 确认状态是 `FRAMEBUFFER_COMPLETE`。\n4. 画布尺寸变化时，重新分配纹理大小。\n\n如果场景需要深度测试，还要再挂一个深度渲染缓冲（`DEPTH_ATTACHMENT`）。本例是纯 2D 加法混合，所以省略了。\n\n## 两遍渲染\n\n- **第 1 遍**：绑定 FBO，先画网格背景，再用 `drawArraysInstanced` 一次画出几百个发光圆点。`gl_InstanceID` 决定每个圆点的轨道和颜色，`blendFunc(ONE, ONE)` 让重叠处变得更亮。\n- **第 2 遍**：`bindFramebuffer(null)` 切回画布，画一个全屏三角形，在片元着色器里读取第 1 遍的纹理。\n\n## 后期效果\n\n- **模糊**：对周围 5×5 个样本做高斯加权平均。真实项目会拆成水平、垂直两遍（可分离卷积），把开销从 n² 降到 2n。\n- **色差**：对 R、G、B 三个通道分别沿径向偏移不同的距离采样，模拟镜头的色散，越靠近边缘越明显。\n- **暗角**：按到中心的距离逐渐压暗。\n\n```glsl\nvec2 off = (vUV - 0.5) * uAberration * 0.02;\nvec3 c = vec3(blurred(vUV + off).r, blurred(vUV).g, blurred(vUV - off).b);\n```\n\n拖动“before | after”，左侧显示原始的 FBO 纹理，右侧是处理后的效果。\n\n> 注意采样时使用的 `uTexel = 1 / 尺寸`：后期着色器里所有“偏移几个像素”的操作，都要换算成 UV 单位。",
+    "en": "## Rendering to a texture\n\nBy default, drawing goes straight to the canvas. A **framebuffer object** (FBO) lets you draw into a texture instead, which you can then sample like any other texture. Nearly every post effect (bloom, depth of field, tone mapping, outlines) builds on this step.\n\n```glsl\n// JS:\n// gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);\n// gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);\n```\n\nSetting up an FBO:\n\n1. Create an empty texture: `texImage2D(..., null)` allocates storage without uploading data.\n2. Attach it to the framebuffer as `COLOR_ATTACHMENT0`.\n3. Check that `gl.checkFramebufferStatus` returns `FRAMEBUFFER_COMPLETE`.\n4. When the canvas resizes, reallocate the texture.\n\nA scene that needs depth testing also attaches a depth renderbuffer (`DEPTH_ATTACHMENT`). This example is purely 2D with additive blending, so it skips that.\n\n## Two passes\n\n- **Pass 1**: bind the FBO, draw the grid backdrop, then draw hundreds of glowing discs in one `drawArraysInstanced` call. `gl_InstanceID` picks each disc's orbit and color, and `blendFunc(ONE, ONE)` makes overlaps brighter.\n- **Pass 2**: `bindFramebuffer(null)` returns to the canvas; draw a full-screen triangle whose fragment shader reads the texture from pass 1.\n\n## The effects\n\n- **Blur**: a Gaussian-weighted average of a 5×5 neighbourhood. Real projects split it into a horizontal and a vertical pass (a separable convolution), cutting the cost from n² to 2n samples.\n- **Chromatic aberration**: sample R, G and B at different radial offsets to mimic lens dispersion, strongest near the edges.\n- **Vignette**: darken gradually with distance from the center.\n\n```glsl\nvec2 off = (vUV - 0.5) * uAberration * 0.02;\nvec3 c = vec3(blurred(vUV + off).r, blurred(vUV).g, blurred(vUV - off).b);\n```\n\nDrag \"before | after\": the left side shows the raw FBO texture, the right side the processed result.\n\n> Note `uTexel = 1 / size`: every \"offset by N pixels\" in a post shader has to be converted to UV units."
+  },
+  "keyApis": [
+    "gl.createFramebuffer",
+    "gl.framebufferTexture2D",
+    "gl.checkFramebufferStatus",
+    "gl.bindFramebuffer",
+    "gl.drawArraysInstanced",
+    "gl_InstanceID",
+    "gl.blendFunc",
+    "texture()"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 blur 拉到 12，观察 5×5 核在大半径下出现的分层伪影。",
+      "在后期着色器里加一个灰度开关：dot(c, vec3(0.299, 0.587, 0.114))。",
+      "把模糊拆成水平和垂直两遍，需要两个 FBO 来回切换（ping-pong）。"
+    ],
+    "en": [
+      "Push blur to 12 and notice the banding a 5×5 kernel produces at large radii.",
+      "Add a grayscale toggle in the post shader: dot(c, vec3(0.299, 0.587, 0.114)).",
+      "Split the blur into horizontal and vertical passes using two FBOs in ping-pong."
+    ]
+  }
+}

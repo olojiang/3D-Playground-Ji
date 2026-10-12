@@ -87,7 +87,7 @@ void main() {
   vec2 p = (2.0 * gl_FragCoord.xy - uResolution) / uResolution.y;
 
   // Camera: orbit around the origin, build a look-at basis, one ray per pixel.
-  vec3 ro = 3.6 * vec3(cos(uOrbit.y) * sin(uOrbit.x), sin(uOrbit.y), cos(uOrbit.y) * cos(uOrbit.x));
+  vec3 ro = 4.4 * vec3(cos(uOrbit.y) * sin(uOrbit.x), sin(uOrbit.y), cos(uOrbit.y) * cos(uOrbit.x));
   vec3 ta = vec3(0.0, 0.5, 0.0);
   vec3 ww = normalize(ta - ro), uu = normalize(cross(ww, vec3(0, 1, 0))), vv = cross(uu, ww);
   vec3 rd = normalize(p.x * uu + p.y * vv + 1.8 * ww);
@@ -103,22 +103,22 @@ void main() {
     if (t > 20.0) break;
   }
 
-  vec3 sky = mix(vec3(0.05, 0.05, 0.09), vec3(0.16, 0.12, 0.26), clamp(rd.y * 2.0 + 0.4, 0.0, 1.0));
+  vec3 sky = mix(vec3(0.012, 0.01, 0.028), vec3(0.003, 0.003, 0.006), clamp(rd.y * 2.5, 0.0, 1.0));
   vec3 col = sky;
   if (hit) {
     vec3 pos = ro + rd * t;
     vec3 n = calcNormal(pos);
     vec3 L = normalize(vec3(0.6, 0.8, 0.4));
-    vec3 albedo = m > 0.5 ? vec3(0.95, 0.55, 0.3)
-      : mix(vec3(0.12, 0.12, 0.18), vec3(0.2, 0.2, 0.28), mod(floor(pos.x * 2.0) + floor(pos.z * 2.0), 2.0)); // checker floor
+    vec3 albedo = m > 0.5 ? vec3(0.9, 0.42, 0.12)
+      : mix(vec3(0.008, 0.008, 0.014), vec3(0.025, 0.024, 0.04), mod(floor(pos.x * 2.0) + floor(pos.z * 2.0), 2.0)); // checker floor
     float dif = max(dot(n, L), 0.0);
     float sha = uShadows ? softShadow(pos + n * 0.002, L) : 1.0;
     float ao = uAO ? ambientOcclusion(pos, n) : 1.0;
     float spe = pow(max(dot(reflect(rd, n), L), 0.0), 32.0) * dif * sha;
     float fre = pow(1.0 - max(dot(-rd, n), 0.0), 4.0);
-    col = albedo * (vec3(1.0, 0.92, 0.8) * 1.6 * dif * sha + vec3(0.3, 0.32, 0.5) * 0.45 * ao);
-    col += spe * 0.8 * float(m > 0.5) + fre * 0.25 * sky * ao;
-    col = mix(col, sky, 1.0 - exp(-0.004 * t * t * t)); // distance fog
+    col = albedo * (vec3(1.0, 0.9, 0.75) * 2.2 * dif * sha + vec3(0.35, 0.4, 0.75) * 0.35 * ao);
+    col += (spe * 0.9 + fre * vec3(0.25, 0.2, 0.5) * ao) * float(m > 0.5);
+    col = mix(col, sky, 1.0 - exp(-0.0025 * t * t * t)); // distance fog
   }
   col = pow(col, vec3(1.0 / 2.2));                        // linear → display gamma
   outColor = vec4(col, 1.0);
@@ -140,7 +140,7 @@ const names = ["uResolution", "uTime", "uBlend", "uSoftness", "uShadows", "uAO",
 const loc = Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(program, n)]));
 const vao = gl.createVertexArray();
 
-const params = { blend: 0.3, softness: 10, shadows: true, ao: true, steps: 96, autoRotate: true, resolution: 0.6 };
+const params = { blend: 0.3, softness: 10, shadows: true, ao: true, steps: 96, autoRotate: true, resolution: 0.75 };
 const gui = new GUI({ title: "Parameters" });
 gui.add(params, "blend", 0.001, 0.8, 0.001).name("smooth union k");
 gui.add(params, "softness", 2, 40, 0.5).name("shadow softness");
@@ -151,7 +151,7 @@ gui.add(params, "autoRotate");
 gui.add(params, "resolution", 0.25, 1, 0.05).name("render scale").onChange(resize);
 
 // Drag to orbit the camera.
-const orbit = [0.6, 0.35];
+const orbit = [0.6, 0.5];
 let dragging = false;
 canvas.addEventListener("pointerdown", (e) => { dragging = true; canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener("pointerup", () => (dragging = false));

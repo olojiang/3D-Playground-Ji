@@ -1,0 +1,46 @@
+{
+  "slug": "lighting-glsl",
+  "order": 11,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "lighting",
+    "lambert",
+    "phong",
+    "blinn-phong",
+    "fresnel"
+  ],
+  "title": {
+    "zh": "手写光照：Lambert、Phong 与 Fresnel",
+    "en": "Lighting in GLSL by Hand"
+  },
+  "summary": {
+    "zh": "在 GLSL 里亲手实现 Lambert 漫反射、Phong 与 Blinn-Phong 高光，以及菲涅尔边缘光，用 GUI 逐个切换对比。",
+    "en": "Implement Lambert diffuse, Phong and Blinn-Phong highlights and a Fresnel rim yourself in GLSL, and switch between them in the GUI."
+  },
+  "concepts": {
+    "zh": "## 三个向量\n\n几乎所有经典光照模型都只围绕三个单位向量展开，它们都在世界空间中计算：\n\n- **N**：表面法线。插值后长度会变短，片元着色器里要重新 `normalize`。\n- **L**：从表面指向光源。\n- **V**：从表面指向相机（`cameraPosition - vWorld`）。\n\n## Lambert 漫反射\n\n粗糙表面把光均匀地散向各个方向，亮度只取决于光线入射角的余弦：\n\n```glsl\nfloat NdotL = max(dot(N, L), 0.0);\nvec3 color = uAmbient * uAlbedo + uAlbedo * uLightColor * NdotL;\n```\n\n`max(..., 0.0)` 保证背光面不会出现负光。环境光项是对周围间接光的粗略近似。\n\n## Phong 高光\n\n光滑表面会把光反射到镜面方向。Phong 先求出反射方向 R，再看它与视线有多接近：\n\n```glsl\nvec3 R = reflect(-L, N);\nfloat spec = pow(max(dot(R, V), 0.0), uShininess);\n```\n\n指数（shininess）越大，高光越小越锐利。\n\n## Blinn-Phong 高光\n\nBlinn 改用 L 与 V 的**半程向量** H，比较它与法线的夹角。计算更省，掠射角下的高光也更自然。OpenGL 固定管线时代的默认光照就是它。同样的锐度大约需要 Phong 指数的 4 倍：\n\n```glsl\nvec3 H = normalize(L + V);\nfloat spec = pow(max(dot(N, H), 0.0), uShininess * 4.0);\n```\n\n## Fresnel 边缘光\n\n现实中，几乎所有材质在掠射角下都会变得更反光（菲涅尔效应）。用 `1 - dot(N, V)` 来近似：正对相机时为 0，轮廓边缘处趋近 1。乘方控制边缘的宽窄：\n\n```glsl\nfloat rim = pow(1.0 - max(dot(N, V), 0.0), uRimPower);\n```\n\n它让物体从背景中“跳”出来，常用于角色描边和科幻效果。\n\n## Gamma\n\n光照要在**线性空间**里计算，最后再用 `pow(color, 1.0 / 2.2)` 编码给显示器。跳过这一步，暗部会显得过黑，过渡也会变得生硬。",
+    "en": "## Three vectors\n\nAlmost every classic lighting model revolves around three unit vectors, all in world space:\n\n- **N**: the surface normal. Interpolation shortens it, so `normalize` again in the fragment shader.\n- **L**: from the surface toward the light.\n- **V**: from the surface toward the camera (`cameraPosition - vWorld`).\n\n## Lambert diffuse\n\nA rough surface scatters light equally in all directions, so brightness depends only on the cosine of the angle of incidence:\n\n```glsl\nfloat NdotL = max(dot(N, L), 0.0);\nvec3 color = uAmbient * uAlbedo + uAlbedo * uLightColor * NdotL;\n```\n\n`max(..., 0.0)` keeps faces turned away from the light from receiving negative light. The ambient term is a crude stand-in for indirect light.\n\n## Phong highlight\n\nA smooth surface reflects light toward the mirror direction. Phong computes that reflection R and checks how close it is to the view direction:\n\n```glsl\nvec3 R = reflect(-L, N);\nfloat spec = pow(max(dot(R, V), 0.0), uShininess);\n```\n\nA higher exponent (shininess) gives a smaller, sharper highlight.\n\n## Blinn-Phong highlight\n\nBlinn uses the **half vector** H between L and V and compares it with the normal. It is cheaper and behaves better at grazing angles; it was the default lighting of fixed-function OpenGL. The same sharpness needs roughly 4× the Phong exponent:\n\n```glsl\nvec3 H = normalize(L + V);\nfloat spec = pow(max(dot(N, H), 0.0), uShininess * 4.0);\n```\n\n## Fresnel rim\n\nIn reality, nearly every material becomes more reflective at grazing angles (the Fresnel effect). `1 - dot(N, V)` approximates it: 0 when facing the camera, close to 1 at the silhouette. The exponent controls how wide the rim is:\n\n```glsl\nfloat rim = pow(1.0 - max(dot(N, V), 0.0), uRimPower);\n```\n\nIt makes objects pop off the background and is common for character outlines and sci-fi looks.\n\n## Gamma\n\nCompute lighting in **linear space**, then encode for the display with `pow(color, 1.0 / 2.2)`. Skip it and shadows look too dark and falloffs look harsh."
+  },
+  "keyApis": [
+    "dot",
+    "reflect",
+    "normalize",
+    "pow",
+    "cameraPosition",
+    "THREE.ShaderMaterial",
+    "THREE.TorusKnotGeometry"
+  ],
+  "tryThis": {
+    "zh": [
+      "关掉 orbit light，把光固定住，在 Phong 与 Blinn-Phong 之间切换，对比掠射角下的高光形状。",
+      "把 shininess 调到 1 和 128，感受“塑料”与“抛光金属”的差别。",
+      "加一个 toon 模式：用 floor(NdotL * 3.0) / 3.0 把漫反射量化成色阶。"
+    ],
+    "en": [
+      "Turn off orbit light, then switch between Phong and Blinn-Phong and compare the highlight shape at grazing angles.",
+      "Try shininess 1 and 128 to feel the difference between plastic and polished metal.",
+      "Add a toon mode that quantizes diffuse with floor(NdotL * 3.0) / 3.0."
+    ]
+  }
+}

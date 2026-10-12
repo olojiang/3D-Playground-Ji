@@ -3,7 +3,9 @@ const nextConfig = {
   poweredByHeader: false,
   async headers() {
     return [
-      { source: "/sounds/:file*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      // The sandbox iframe has an opaque origin, so its module imports are cross-origin: allow them.
+      { source: "/vendor/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }, { key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      { source: "/sandbox.html", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] },
       { source: "/(.*)", headers: [{ key: "X-Content-Type-Options", value: "nosniff" }, { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }] },
     ];
   },

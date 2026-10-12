@@ -1,0 +1,49 @@
+{
+  "slug": "webgl-pipeline",
+  "order": 1,
+  "difficulty": "beginner",
+  "requires": "webgl2",
+  "tags": [
+    "pipeline",
+    "shaders",
+    "buffers",
+    "vao",
+    "hello-triangle"
+  ],
+  "title": {
+    "zh": "GPU 渲染管线 · Hello Triangle",
+    "en": "The GPU Pipeline · Hello Triangle"
+  },
+  "summary": {
+    "zh": "不借助任何库，用原生 WebGL2 一步步画出第一个三角形，看清管线的每个阶段。",
+    "en": "Draw your first triangle in raw WebGL2, no libraries, and see every stage of the pipeline."
+  },
+  "concepts": {
+    "zh": "## 一帧画面是怎么来的\n\nGPU 把绘制拆成一条固定的流水线（pipeline），数据从左流到右：\n\n1. **顶点数据**：你上传到显存的数字，比如三个点的坐标。\n2. **顶点着色器**（vertex shader）：每个顶点运行一次，输出它在 **裁剪空间** 中的位置 `gl_Position`，x、y 范围是 -1 到 1。\n3. **图元装配**：按 `gl.TRIANGLES`、`gl.LINE_LOOP` 等模式把顶点连成三角形或线段。\n4. **光栅化**：找出三角形覆盖了哪些像素，为每个像素生成一个片元（fragment）。\n5. **片元着色器**（fragment shader）：每个片元运行一次，输出颜色。\n6. **帧缓冲**：颜色写进画布。\n\n其中第 2 步和第 5 步是可编程的，用 GLSL 编写。\n\n## 着色器：编译与链接\n\n着色器像 C 程序一样需要先编译、再链接成一个 program。编译失败不会抛异常，必须主动查询状态并读取日志：\n\n```glsl\n#version 300 es\nin vec2 aPosition;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n}\n```\n\n`gl.getShaderParameter(shader, gl.COMPILE_STATUS)` 为 false 时，用 `gl.getShaderInfoLog` 拿到错误信息并打印出来。链接同理，用 `LINK_STATUS` 和 `getProgramInfoLog`。\n\n## Buffer 与 VAO\n\n- **Buffer** 是显存里的一块字节数组，`gl.bufferData` 把 `Float32Array` 上传进去。\n- **VAO**（顶点数组对象）记录“怎样读取这块内存”：`gl.vertexAttribPointer(位置, 分量数, 类型, 是否归一化, 步长, 偏移)`。之后每次绘制只需绑定 VAO。\n\n## 绘制\n\n每帧先 `gl.viewport` 把裁剪空间映射到像素，`gl.clear` 清屏，然后 `useProgram`、`bindVertexArray`，最后 `gl.drawArrays(gl.TRIANGLES, 0, 3)`：3 个顶点，组成 1 个三角形。\n\n> 点一下面板里的“compile a broken shader”，在控制台读一读真实的编译错误日志：以后调试着色器，这就是你的第一手线索。",
+    "en": "## Where a frame comes from\n\nThe GPU splits drawing into a fixed pipeline. Data flows left to right:\n\n1. **Vertex data**: numbers you upload to GPU memory, such as the coordinates of three points.\n2. **Vertex shader**: runs once per vertex and outputs its position in **clip space**, `gl_Position`, where x and y go from -1 to 1.\n3. **Primitive assembly**: connects vertices into triangles or lines according to the mode, such as `gl.TRIANGLES` or `gl.LINE_LOOP`.\n4. **Rasterization**: finds which pixels each triangle covers and creates one fragment per pixel.\n5. **Fragment shader**: runs once per fragment and outputs a color.\n6. **Framebuffer**: the colors land on the canvas.\n\nSteps 2 and 5 are programmable; you write them in GLSL.\n\n## Shaders: compile and link\n\nLike C programs, shaders are compiled and then linked into a program. A failed compile does not throw; you have to ask for the status and read the log:\n\n```glsl\n#version 300 es\nin vec2 aPosition;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n}\n```\n\nWhen `gl.getShaderParameter(shader, gl.COMPILE_STATUS)` is false, fetch the message with `gl.getShaderInfoLog` and print it. Linking works the same way with `LINK_STATUS` and `getProgramInfoLog`.\n\n## Buffers and VAOs\n\n- A **buffer** is a block of bytes in GPU memory; `gl.bufferData` uploads a `Float32Array` into it.\n- A **VAO** (vertex array object) records how to read that memory: `gl.vertexAttribPointer(location, size, type, normalized, stride, offset)`. After that, drawing only needs the VAO bound.\n\n## Drawing\n\nEvery frame, `gl.viewport` maps clip space to pixels and `gl.clear` wipes the screen. Then `useProgram`, `bindVertexArray`, and finally `gl.drawArrays(gl.TRIANGLES, 0, 3)`: three vertices make one triangle.\n\n> Press \"compile a broken shader\" in the panel and read a real compile log in the console. When a shader misbehaves later, that log is your first clue."
+  },
+  "keyApis": [
+    "canvas.getContext('webgl2')",
+    "gl.createShader",
+    "gl.compileShader",
+    "gl.getShaderInfoLog",
+    "gl.linkProgram",
+    "gl.createBuffer",
+    "gl.bufferData",
+    "gl.createVertexArray",
+    "gl.vertexAttribPointer",
+    "gl.drawArrays"
+  ],
+  "tryThis": {
+    "zh": [
+      "把三个顶点之一改到 (0.9, 0.9)，看三角形如何变形。",
+      "把 primitive 切到 POINTS，再在顶点着色器里改 gl_PointSize。",
+      "在顶点着色器里写错一个变量名，读一读控制台中的报错行号。"
+    ],
+    "en": [
+      "Move one vertex to (0.9, 0.9) and watch the triangle change shape.",
+      "Switch primitive to POINTS, then change gl_PointSize in the vertex shader.",
+      "Misspell a variable in the vertex shader and read the line number in the console error."
+    ]
+  }
+}

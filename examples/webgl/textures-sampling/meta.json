@@ -1,0 +1,47 @@
+{
+  "slug": "textures-sampling",
+  "order": 5,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "textures",
+    "sampling",
+    "mipmaps",
+    "filtering",
+    "wrap-modes"
+  ],
+  "title": {
+    "zh": "纹理与采样：过滤、环绕与 Mipmap",
+    "en": "Textures & Sampling"
+  },
+  "summary": {
+    "zh": "用 JS 逐像素生成纹理，理解纹理单元、采样器、环绕模式，以及 NEAREST、LINEAR 和 mipmap 的区别。",
+    "en": "Generate a texture pixel by pixel and learn texture units, samplers, wrap modes, and NEAREST vs LINEAR vs mipmaps."
+  },
+  "concepts": {
+    "zh": "## 纹理就是一张可以被插值读取的数组\n\n纹理是一块二维的像素数据。本例不加载任何图片，而是用 `Uint8Array` 逐像素画出棋盘格、金色圆环和紫色网格线，再用 `gl.texImage2D` 上传。片元着色器用 UV 坐标读取它：\n\n```glsl\nuniform sampler2D uPattern;\nin vec2 vUV;\nvoid main() {\n  outColor = texture(uPattern, vUV);\n}\n```\n\n## 纹理单元与 sampler\n\nGPU 有若干个**纹理单元**（texture unit），像一排插槽。流程是：`gl.activeTexture(gl.TEXTURE1)` 选中插槽，`gl.bindTexture` 把纹理插进去，再用 `gl.uniform1i(loc, 1)` 告诉 sampler 去 1 号插槽读。sampler uniform 里存的是**单元编号**，不是纹理对象。本例同时用了两个单元：0 号是重复的图案，1 号是一条只用一次的色带。\n\n## 环绕模式（wrap）\n\nUV 超出 0~1 时怎么办？\n\n- `REPEAT`：平铺，最常用。\n- `MIRRORED_REPEAT`：每隔一块镜像翻转，接缝更不明显。\n- `CLAMP_TO_EDGE`：一直重复边缘像素。\n\n把 uv repeat 调到 2 左右再切换 wrap，差别一目了然：CLAMP_TO_EDGE 下只有一块图案，其余全是拉长的边缘像素。\n\n## 过滤：放大与缩小\n\n- **放大**（一个纹素覆盖多个像素，近处）：`NEAREST` 呈现锐利的像素块，`LINEAR` 在 4 个纹素间双线性插值，变得平滑。\n- **缩小**（多个纹素挤进一个像素，远处）：只取一个样本会产生闪烁和摩尔纹。解决办法是 **mipmap**：`gl.generateMipmap` 预先生成 1/2、1/4……直到 1×1 的缩略图，GPU 按距离挑合适的层级。`LINEAR_MIPMAP_LINEAR`（三线性过滤）在两层之间再插值一次，效果最好。\n\n## 各向异性过滤\n\n地面以掠射角远去时，像素在纹理上的足迹是一个细长条，普通 mipmap 会过度模糊。`EXT_texture_filter_anisotropic` 扩展沿长轴多采几次，远处依然清晰。\n\n> 把 MIN_FILTER 切到 NEAREST 并开着 scroll，盯着地平线附近：那些闪烁的噪点就是没有 mipmap 时的走样。",
+    "en": "## A texture is an array you read with interpolation\n\nA texture is a 2D block of pixel data. This example loads no image: it paints a checkerboard, a gold ring and purple grid lines pixel by pixel into a `Uint8Array`, then uploads it with `gl.texImage2D`. The fragment shader reads it with UV coordinates:\n\n```glsl\nuniform sampler2D uPattern;\nin vec2 vUV;\nvoid main() {\n  outColor = texture(uPattern, vUV);\n}\n```\n\n## Texture units and samplers\n\nThe GPU has several **texture units**, like a row of slots. You select a slot with `gl.activeTexture(gl.TEXTURE1)`, plug a texture in with `gl.bindTexture`, and point the sampler at it with `gl.uniform1i(loc, 1)`. A sampler uniform stores a **unit number**, not a texture object. This example uses two units at once: unit 0 holds the repeating pattern, unit 1 a color ramp used only once.\n\n## Wrap modes\n\nWhat happens when UVs leave the 0–1 range?\n\n- `REPEAT`: tile it, the usual choice.\n- `MIRRORED_REPEAT`: flip every other tile, which hides seams.\n- `CLAMP_TO_EDGE`: keep repeating the edge pixels.\n\nSet uv repeat to about 2 and switch wrap modes, and the difference is obvious: with CLAMP_TO_EDGE only one tile appears and the rest is stretched edge pixels.\n\n## Filtering: magnification and minification\n\n- **Magnification** (one texel covers many pixels, up close): `NEAREST` gives crisp pixel blocks; `LINEAR` blends the 4 nearest texels bilinearly for a smooth look.\n- **Minification** (many texels squeeze into one pixel, far away): taking a single sample causes shimmering and moiré. The fix is **mipmaps**: `gl.generateMipmap` precomputes half, quarter and smaller copies down to 1×1, and the GPU picks a level by distance. `LINEAR_MIPMAP_LINEAR` (trilinear filtering) also blends between two levels and looks best.\n\n## Anisotropic filtering\n\nWhen a floor recedes at a grazing angle, a pixel's footprint on the texture is a long thin strip, and plain mipmapping blurs it too much. The `EXT_texture_filter_anisotropic` extension takes extra samples along the long axis so the distance stays sharp.\n\n> Set MIN_FILTER to NEAREST with scroll on and watch near the horizon: that crawling noise is aliasing without mipmaps."
+  },
+  "keyApis": [
+    "gl.createTexture",
+    "gl.texImage2D",
+    "gl.activeTexture",
+    "gl.texParameteri",
+    "gl.generateMipmap",
+    "sampler2D",
+    "texture()",
+    "EXT_texture_filter_anisotropic"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 MAG_FILTER 切到 NEAREST，近看圆环的像素块。",
+      "把纹理尺寸 N 改成 16，再对比 LINEAR 与 NEAREST。",
+      "在片元着色器里用 textureLod(uPattern, vUV, 4.0) 强制读第 4 级 mipmap。"
+    ],
+    "en": [
+      "Set MAG_FILTER to NEAREST and look closely at the ring's pixel blocks.",
+      "Change the texture size N to 16, then compare LINEAR and NEAREST again.",
+      "In the fragment shader, use textureLod(uPattern, vUV, 4.0) to force mip level 4."
+    ]
+  }
+}

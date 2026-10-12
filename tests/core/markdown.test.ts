@@ -22,9 +22,9 @@ describe("blocks", () => {
     expect(b.map((x) => x.type)).toEqual(["h2", "p", "ul", "ol", "code", "quote", "h3"]);
   });
   it("joins paragraph lines and keeps code verbatim", () => {
-    expect(inlineText((b[1] as { c: never[] }).c)).toBe("Para one continues.");
+    expect(inlineText((b[1] as unknown as { c: never[] }).c)).toBe("Para one continues.");
     expect(b[4]).toEqual({ type: "code", lang: "glsl", code: "void main(){}" });
-    expect(inlineText((b[5] as { c: never[] }).c)).toBe("tip here more");
+    expect(inlineText((b[5] as unknown as { c: never[] }).c)).toBe("tip here more");
   });
   it("builds a table of contents with unique, CJK-friendly ids", () => {
     expect(headings(parseMarkdown("## A\n## A\n### 中文 标题"))).toEqual([

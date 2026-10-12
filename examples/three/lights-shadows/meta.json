@@ -1,0 +1,51 @@
+{
+  "slug": "lights-shadows",
+  "order": 4,
+  "difficulty": "intermediate",
+  "requires": "webgl",
+  "tags": [
+    "lights",
+    "shadows",
+    "shadow-map",
+    "helpers"
+  ],
+  "title": {
+    "zh": "灯光与阴影",
+    "en": "Lights & Shadows"
+  },
+  "summary": {
+    "zh": "五种光源、它们的辅助线，以及阴影贴图的开启方式、阴影相机和柔化。",
+    "en": "Five light types, their helpers, and how shadow maps work: enabling them, the shadow camera, and soft edges."
+  },
+  "concepts": {
+    "zh": "## 五种光源\n\n- **AmbientLight（环境光）**：各处等量照亮，没有方向，也不产生阴影。只用它，物体会显得扁平。\n- **HemisphereLight（半球光）**：上方是天空色、下方是地面色，按法线朝向混合。非常便宜的户外补光。\n- **DirectionalLight（平行光）**：光线互相平行，模拟太阳。只有方向有意义（从 position 指向 target）。\n- **PointLight（点光源）**：从一点向四周发光，像灯泡。`distance` 与 `decay` 控制衰减。\n- **SpotLight（聚光灯）**：一个锥形光束，`angle` 是锥角，`penumbra` 是边缘的柔和程度。\n\n每种光都有对应的 Helper（`DirectionalLightHelper`、`PointLightHelper`、`SpotLightHelper`）把位置和方向画出来，调试时非常有用。\n\n## 阴影需要三处开关\n\n阴影默认关闭，因为它要额外渲染场景。需要：\n\n1. `renderer.shadowMap.enabled = true`\n2. 光源 `light.castShadow = true`\n3. 物体 `mesh.castShadow = true`（投射）和 `mesh.receiveShadow = true`（接收）\n\n## 阴影贴图的原理\n\n渲染器先从**光源的视角**渲染一张深度图（shadow map），再在正常渲染时比较：像素离光源比深度图里记录的更远，就说明被挡住了。这台“光源相机”就是 `light.shadow.camera`：\n\n- 平行光用**正交**阴影相机，要把 `left/right/top/bottom` 设得刚好包住场景，太大精度会浪费、太小阴影会被截断。打开 “show sun shadow camera” 就能看见它。\n- 聚光灯用**透视**阴影相机；点光源要渲染 6 个方向（立方体贴图），最贵。\n\n`shadow.mapSize` 越大越清晰，代价是显存和带宽。`shadow.bias` 用来消除“阴影痤疮”（表面出现条纹自阴影）。\n\n## 柔和的阴影\n\n`shadowMap.type` 可选 Basic（硬边、最快）、PCF（多次采样过滤）和 VSM。r186 起 `PCFSoftShadowMap` 已被废弃并自动回退到 PCF；现在用 `PCFShadowMap` 加 `light.shadow.radius` 就能得到柔和的边缘。\n\n> 把 sun mapSize 调到 256，观察阴影边缘的锯齿；再提高 blur radius 看看它如何被柔化。",
+    "en": "## Five light types\n\n- **AmbientLight**: lights everything equally, with no direction and no shadows. On its own it makes objects look flat.\n- **HemisphereLight**: a sky colour from above and a ground colour from below, blended by surface direction. Very cheap outdoor fill.\n- **DirectionalLight**: parallel rays, like the sun. Only its direction matters (from position toward its target).\n- **PointLight**: shines in all directions from one point, like a bulb. `distance` and `decay` control falloff.\n- **SpotLight**: a cone of light. `angle` is the cone angle; `penumbra` softens its edge.\n\nEach has a helper (`DirectionalLightHelper`, `PointLightHelper`, `SpotLightHelper`) that draws its position and direction, which is invaluable while debugging.\n\n## Shadows need three switches\n\nShadows are off by default because they cost extra renders. You need:\n\n1. `renderer.shadowMap.enabled = true`\n2. On the light: `light.castShadow = true`\n3. On meshes: `castShadow = true` to cast and `receiveShadow = true` to receive.\n\n## How a shadow map works\n\nThe renderer first draws a depth image from the **light's point of view** (the shadow map). During the normal render, a pixel that is farther from the light than the depth stored there is in shadow. That light camera is `light.shadow.camera`:\n\n- A directional light uses an **orthographic** shadow camera. Fit `left/right/top/bottom` snugly around the scene: too big wastes resolution, too small cuts shadows off. Toggle \"show sun shadow camera\" to see it.\n- A spot light uses a **perspective** shadow camera; a point light renders six directions (a cube map), the most expensive case.\n\nA larger `shadow.mapSize` is sharper but costs memory and bandwidth. `shadow.bias` fights \"shadow acne\", the striped self-shadowing on lit surfaces.\n\n## Soft shadows\n\n`shadowMap.type` can be Basic (hard edges, fastest), PCF (filtered with several samples) or VSM. Since r186, `PCFSoftShadowMap` is deprecated and falls back to PCF; use `PCFShadowMap` with `light.shadow.radius` to get soft edges.\n\n> Set sun mapSize to 256 to see blocky shadow edges, then raise blur radius and watch them soften."
+  },
+  "keyApis": [
+    "THREE.AmbientLight",
+    "THREE.HemisphereLight",
+    "THREE.DirectionalLight",
+    "THREE.PointLight",
+    "THREE.SpotLight",
+    "renderer.shadowMap",
+    "light.shadow.camera",
+    "light.shadow.mapSize",
+    "THREE.PCFShadowMap",
+    "THREE.CameraHelper",
+    "THREE.SpotLightHelper"
+  ],
+  "tryThis": {
+    "zh": [
+      "把太阳阴影相机的 left/right/top/bottom 都改成 ±3，打开 shadow camera 辅助线，看看哪些阴影被截掉了。",
+      "把 sun.shadow.bias 设为 0，靠近观察物体表面是否出现条纹（阴影痤疮）。",
+      "关掉除 Spot 以外的所有灯，调整 angle 和 penumbra，做一个舞台追光效果。",
+      "把 shadowType 切到 Basic，对比 PCF 的边缘和帧率。"
+    ],
+    "en": [
+      "Set the sun shadow camera's left/right/top/bottom to ±3, show the shadow camera, and see which shadows get cut off.",
+      "Set sun.shadow.bias to 0 and look closely for striped shadow acne on the surfaces.",
+      "Turn off every light except Spot and tune angle and penumbra for a stage-spotlight look.",
+      "Switch shadowType to Basic and compare the edges and frame rate with PCF."
+    ]
+  }
+}

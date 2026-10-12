@@ -55,12 +55,15 @@ void main() {
   // Union of shapes = min of their distances.
   float d = sdBox(rot(iTime * 0.4) * p, vec2(0.28), 0.08);
   float id = 0.0;
+  vec3 glow = palette(iTime * 0.1) * exp(-10.0 * max(d, 0.0));  // each shape adds its own halo
   for (int i = 0; i < 16; i++) {
     if (i >= uCount) break;
     float a = float(i) / float(uCount) * 6.2831853 + iTime * 0.5;
     float r = 0.62 + 0.08 * sin(iTime * 2.0 + float(i));
     float c = sdCircle(p - r * vec2(cos(a), sin(a)), 0.09 + 0.03 * sin(iTime + float(i) * 1.7));
-    if (c < d) { d = c; id = float(i + 1) / float(uCount); }
+    float cid = float(i + 1) / float(uCount);
+    glow += palette(cid + iTime * 0.1) * exp(-14.0 * max(c, 0.0));
+    if (c < d) { d = c; id = cid; }
   }
 
   if (uShowField) {
@@ -73,7 +76,7 @@ void main() {
     // smoothstep turns the hard edge into a ~uBlur pixel ramp → anti-aliasing.
     float fill = 1.0 - smoothstep(-uBlur * px, uBlur * px, d);
     vec3 shape = palette(id + iTime * 0.1 + length(p) * 0.3);
-    col += shape * 0.25 * exp(-12.0 * max(d, 0.0));       // glow outside the shapes
+    col += glow * 0.22;                                   // soft halos outside the shapes
     col = mix(col, shape, fill);
     col = mix(col, vec3(1.0), (1.0 - smoothstep(0.0, px * 1.5, abs(d + 0.012))) * 0.6); // inner rim
   }

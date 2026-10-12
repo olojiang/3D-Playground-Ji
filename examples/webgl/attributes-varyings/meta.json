@@ -1,0 +1,45 @@
+{
+  "slug": "attributes-varyings",
+  "order": 2,
+  "difficulty": "beginner",
+  "requires": "webgl2",
+  "tags": [
+    "attributes",
+    "varyings",
+    "interpolation",
+    "interleaved-buffer"
+  ],
+  "title": {
+    "zh": "Attribute 与 Varying：插值的魔法",
+    "en": "Attributes & Varyings"
+  },
+  "summary": {
+    "zh": "每个顶点带一个颜色，光栅化器自动把它们在三角形内平滑插值；顺便学会交错缓冲区的步长与偏移。",
+    "en": "Give each vertex a color and let the rasterizer blend it across the triangle, using an interleaved buffer with stride and offset."
+  },
+  "concepts": {
+    "zh": "## 每个顶点的数据：attribute\n\nattribute 是逐顶点的输入，比如位置、颜色、法线、UV。在 GLSL ES 3.00 里用 `in` 声明，并可以用 `layout(location = N)` 固定它的位置编号，JS 端就不用再查询：\n\n```glsl\nlayout(location = 0) in vec2 aPosition;\nlayout(location = 1) in vec3 aColor;\nout vec3 vColor;            // varying：传给片元着色器\nvoid main() {\n  vColor = aColor;\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n}\n```\n\n## 从顶点到像素：varying\n\n顶点着色器的 `out` 变量叫 varying。光栅化器会按像素到三个顶点的距离（重心坐标）把它们**插值**，片元着色器用同名、同类型的 `in` 接收。所以三个顶点分别是红、绿、蓝时，三角形内部会出现平滑的渐变，而你没写任何渐变代码。\n\n在声明前加 `flat` 可以关闭插值：整个三角形都使用“激发顶点”（provoking vertex，默认是最后一个顶点）的值。切换面板里的 interpolation 对比效果。\n\n## 交错缓冲区：步长与偏移\n\n把一个顶点的所有数据挨着放，`[x, y, r, g, b, x, y, r, g, b, …]`，叫交错布局（interleaved）。读取时要告诉 GPU 两件事：\n\n- **stride（步长）**：从一个顶点跳到下一个顶点要走多少字节。这里 5 个 float × 4 字节 = 20 字节。\n- **offset（偏移）**：这个属性从顶点数据的第几个字节开始。位置在 0，颜色在 2 × 4 = 8。\n\n```glsl\n// JS: gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 20, 8)\n```\n\n交错布局的好处是缓存友好：GPU 读取一个顶点时，需要的数据都在相邻的内存里。\n\n## 动态更新\n\n本例每帧用 `gl.bufferSubData` 改写颜色，让彩虹缓慢旋转。缓冲区创建时用 `gl.DYNAMIC_DRAW` 提示驱动：这块数据会频繁变化。\n\n> 打开“show triangles”，你会看到花朵其实是 12 个三角形拼成的扇形，中心顶点是白色。",
+    "en": "## Per-vertex data: attributes\n\nAn attribute is a per-vertex input such as position, color, normal or UV. In GLSL ES 3.00 you declare it with `in`, and `layout(location = N)` pins its slot so JavaScript does not have to look it up:\n\n```glsl\nlayout(location = 0) in vec2 aPosition;\nlayout(location = 1) in vec3 aColor;\nout vec3 vColor;            // a varying, passed to the fragment shader\nvoid main() {\n  vColor = aColor;\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n}\n```\n\n## From vertices to pixels: varyings\n\nA vertex shader `out` is called a varying. The rasterizer **interpolates** it for each pixel, weighted by how close the pixel is to each of the three vertices (barycentric coordinates), and the fragment shader receives it through an `in` with the same name and type. So when the three vertices are red, green and blue, the inside of the triangle becomes a smooth gradient without any gradient code.\n\nPut `flat` in front of both declarations to turn interpolation off: the whole triangle then uses the value of the provoking vertex, which is the last vertex by default. Toggle interpolation in the panel to compare.\n\n## Interleaved buffers: stride and offset\n\nStoring all of one vertex's data side by side, `[x, y, r, g, b, x, y, r, g, b, …]`, is an interleaved layout. To read it, the GPU needs two numbers:\n\n- **stride**: how many bytes to jump from one vertex to the next. Here 5 floats × 4 bytes = 20 bytes.\n- **offset**: the byte where this attribute starts inside a vertex. Position starts at 0, color at 2 × 4 = 8.\n\n```glsl\n// JS: gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 20, 8)\n```\n\nInterleaving is cache friendly: when the GPU fetches a vertex, everything it needs sits in neighbouring memory.\n\n## Updating data\n\nEach frame this example rewrites the colors with `gl.bufferSubData` so the rainbow slowly turns. Creating the buffer with `gl.DYNAMIC_DRAW` hints to the driver that the data changes often.\n\n> Turn on \"show triangles\" and you will see the flower is a fan of 12 triangles around a white center vertex."
+  },
+  "keyApis": [
+    "layout(location)",
+    "in / out",
+    "flat",
+    "gl.vertexAttribPointer",
+    "gl.enableVertexAttribArray",
+    "gl.bufferSubData",
+    "gl.DYNAMIC_DRAW"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 SEGMENTS 改成 3 或 4，观察插值在大三角形上的样子。",
+      "把中心顶点的颜色改成黑色，看渐变如何变化。",
+      "故意把颜色属性的 offset 写成 4，猜猜会出现什么颜色，再运行验证。"
+    ],
+    "en": [
+      "Set SEGMENTS to 3 or 4 and look at interpolation across big triangles.",
+      "Make the center vertex black and see how the gradient changes.",
+      "Set the color attribute's offset to 4 on purpose, guess what colors you will get, then run it."
+    ]
+  }
+}

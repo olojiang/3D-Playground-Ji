@@ -1,0 +1,45 @@
+{
+  "slug": "noise-fbm",
+  "order": 7,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "noise",
+    "fbm",
+    "domain-warping",
+    "procedural"
+  ],
+  "title": {
+    "zh": "噪声与 fBm：程序化云和大理石",
+    "en": "Noise & fBm"
+  },
+  "summary": {
+    "zh": "从哈希函数出发写值噪声和梯度噪声，叠加成分形布朗运动，再用域扭曲做出流动的云和大理石。",
+    "en": "Build value and gradient noise from a hash, stack them into fractal Brownian motion, then domain-warp them into drifting clouds and marble."
+  },
+  "concepts": {
+    "zh": "## 从随机到连续\n\n`fract(sin(x) * 43758.5)` 是着色器里最常见的伪随机哈希：输入相同，输出相同，但相邻输入的结果毫无关系。直接拿来上色只会得到电视雪花。**噪声**要的是“随机但连续”：在整数网格点上放随机数，格子内部平滑插值。\n\n## 值噪声与梯度噪声\n\n- **值噪声**（value noise）：网格角上放随机**值**，用平滑曲线 `f*f*(3-2f)` 做双线性插值。简单，但能看出方块感。\n- **梯度噪声**（Perlin 风格）：网格角上放随机**梯度向量**，每个角的贡献是梯度与“角到当前点”向量的点积，再用五次曲线插值。网格感明显更弱。\n\n```glsl\nfloat a = dot(hash2(i), f);\nfloat b = dot(hash2(i + vec2(1, 0)), f - vec2(1, 0));\n```\n\n把 look 切到 raw，再在两种噪声之间切换，就能看出区别。\n\n## 分形布朗运动（fBm）\n\n单层噪声太平滑。fBm 把多层噪声叠加起来，每一层（octave）频率乘以 **lacunarity**（通常 2），振幅乘以 **gain**（通常 0.5）：\n\n```glsl\nfor (int i = 0; i < uOctaves; i++) {\n  sum += amp * noise(p);\n  p = R * p * uLacunarity;\n  amp *= uGain;\n}\n```\n\n大尺度决定轮廓，小尺度添加细节，这正是山脉、云朵和海岸线的自相似结构。每层再旋转一下（矩阵 R），可以打散网格方向。\n\n## 域扭曲\n\nInigo Quilez 的技巧：不直接算 `fbm(p)`，而是先用 fBm 算出一个偏移，把坐标“推歪”再采样：\n\n```glsl\nvec2 q = vec2(fbm(p), fbm(p + vec2(5.2, 1.3)));\nfloat n = fbm(p + uWarp * q);\n```\n\n嵌套两层，就得到烟雾般卷曲流动的图案。偏移随时间变化，云就会缓慢翻涌。\n\n## 从数值到画面\n\n噪声只是一个数，配色才决定它是什么：云用 `smoothstep` 映射成密度再混合天空色；大理石用噪声扰动正弦条纹的相位 `sin(x + n * 9.0)`，形成纹理。\n\n> 每个像素要算 5 次 fBm，开销不小。“render scale”降低渲染分辨率，是实时着色器里最常用的性能旋钮。",
+    "en": "## From random to continuous\n\n`fract(sin(x) * 43758.5)` is the most common pseudo-random hash in shaders: the same input gives the same output, but neighbouring inputs give unrelated results. Coloring with it directly gives TV static. **Noise** has to be random yet continuous: put random numbers on the integer grid points and interpolate smoothly inside each cell.\n\n## Value noise and gradient noise\n\n- **Value noise**: random **values** at the grid corners, blended bilinearly with the smooth curve `f*f*(3-2f)`. Simple, but you can see the blocky grid.\n- **Gradient noise** (Perlin style): random **gradient vectors** at the corners. Each corner contributes the dot product of its gradient with the vector from the corner to the current point, blended with a quintic curve. The grid is much less visible.\n\n```glsl\nfloat a = dot(hash2(i), f);\nfloat b = dot(hash2(i + vec2(1, 0)), f - vec2(1, 0));\n```\n\nSet look to raw and switch between the two noises to see the difference.\n\n## Fractal Brownian motion (fBm)\n\nA single layer of noise is too smooth. fBm stacks several layers. Each layer, or octave, multiplies the frequency by the **lacunarity** (usually 2) and the amplitude by the **gain** (usually 0.5):\n\n```glsl\nfor (int i = 0; i < uOctaves; i++) {\n  sum += amp * noise(p);\n  p = R * p * uLacunarity;\n  amp *= uGain;\n}\n```\n\nLarge scales set the outline and small scales add detail: the self-similar structure of mountains, clouds and coastlines. Rotating each octave (the matrix R) breaks up the grid direction.\n\n## Domain warping\n\nInigo Quilez's trick: instead of computing `fbm(p)` directly, use fBm to compute an offset, push the coordinates sideways, and sample again:\n\n```glsl\nvec2 q = vec2(fbm(p), fbm(p + vec2(5.2, 1.3)));\nfloat n = fbm(p + uWarp * q);\n```\n\nNest it twice and you get curling, smoky patterns. Let the offsets change over time and the clouds slowly churn.\n\n## From a number to a picture\n\nNoise is only a number; the color mapping decides what it looks like. Clouds map it to density with `smoothstep` and blend over a sky color. Marble uses the noise to disturb the phase of sine stripes, `sin(x + n * 9.0)`, to form veins.\n\n> Each pixel evaluates fBm five times, which is not cheap. \"render scale\" lowers the rendering resolution, the most common performance knob in real-time shaders."
+  },
+  "keyApis": [
+    "fract",
+    "floor",
+    "mix",
+    "dot",
+    "smoothstep",
+    "fbm",
+    "domain warping"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 octaves 调到 1，再逐步加到 8，观察细节如何一层层出现。",
+      "把 gain 调到 0.7 以上，图案会变得怎样粗糙？",
+      "写一个 ridged 版本：把 noise(p) 换成 1.0 - abs(noise(p))，做出山脊线。"
+    ],
+    "en": [
+      "Set octaves to 1, then raise it step by step to 8 and watch detail appear layer by layer.",
+      "Push gain above 0.7: how rough does the pattern get?",
+      "Write a ridged version by replacing noise(p) with 1.0 - abs(noise(p)) to get ridge lines."
+    ]
+  }
+}

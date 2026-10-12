@@ -113,7 +113,7 @@ const names = ["uResolution", "uTime", "uNoise", "uOctaves", "uLacunarity", "uGa
 const loc = Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(program, n)]));
 const vao = gl.createVertexArray();
 
-const params = { look: "clouds", noise: "gradient", octaves: 5, lacunarity: 2.0, gain: 0.5, warp: 4.0, scale: 1.6, speed: 1, resolution: 0.75 };
+const params = { look: "clouds", noise: "gradient", octaves: 5, lacunarity: 2.0, gain: 0.5, warp: 1.8, scale: 1.1, speed: 1, resolution: 0.75 };
 const gui = new GUI({ title: "Parameters" });
 gui.add(params, "look", ["clouds", "marble", "raw"]);
 gui.add(params, "noise", ["value", "gradient"]);

@@ -8,3 +8,4 @@ test-results
 public/vendor
 src/generated
 work-shots
+examples/*/zz-*

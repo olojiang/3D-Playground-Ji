@@ -1,0 +1,49 @@
+{
+  "slug": "cameras",
+  "order": 13,
+  "difficulty": "intermediate",
+  "requires": "webgl",
+  "tags": [
+    "camera",
+    "perspective",
+    "orthographic",
+    "frustum",
+    "viewport"
+  ],
+  "title": {
+    "zh": "相机：透视、正交与视锥",
+    "en": "Cameras: Perspective, Orthographic & Frustum"
+  },
+  "summary": {
+    "zh": "用分屏同时观察相机的视锥和它看到的画面，对比透视相机与正交相机，理解 near / far 裁剪。",
+    "en": "A split screen shows a camera's frustum and what it sees at once: compare perspective and orthographic cameras and understand near/far clipping."
+  },
+  "concepts": {
+    "zh": "## 相机定义一个“可见空间”\n\n相机看到的范围是一个封闭的体积，叫**视锥体**（frustum）。只有在视锥体内的东西会被画出来。`CameraHelper` 能把它画成线框，示例左半屏用另一台“观察者相机”从远处看这台相机，右半屏显示它实际看到的画面。\n\n## PerspectiveCamera：透视\n\n`new PerspectiveCamera(fov, aspect, near, far)`\n\n- `fov`：垂直视野角度（度）。小 fov 像长焦镜头，画面压缩；大 fov 像广角，边缘拉伸。\n- `aspect`：宽高比，应等于画布（或视口）的宽 / 高。\n- 视锥体是一个被截掉尖端的**金字塔**，所以远处的物体看起来更小——这就是透视。\n\n## OrthographicCamera：正交\n\n`new OrthographicCamera(left, right, top, bottom, near, far)`\n\n- 用世界单位定义一个**长方体**视野，远近物体大小相同，平行线保持平行。\n- 常用于 2D 游戏、CAD、等距视角（isometric）、阴影相机和 UI。\n- 为了不变形，`(right - left) / (top - bottom)` 应等于视口宽高比，示例在 resize 时一起更新。\n\n## near 与 far\n\n小于 `near` 或大于 `far` 的部分会被裁掉。把 near 拉大，你会看到离相机近的柱子被“切开”；把 far 拉小，远处的柱子会消失。不要为了“保险”把 near 设得极小（如 0.0001）、far 设得极大：深度缓冲的精度主要集中在近处，比例太悬殊会导致远处表面互相闪烁（z-fighting）。\n\n## 修改后记得更新\n\n改了 fov、aspect、near、far、zoom 或正交的边界之后，必须调用 `camera.updateProjectionMatrix()`，否则投影矩阵还是旧的。`CameraHelper` 也需要 `helper.update()` 才会跟着变化。\n\n## 一张画布，两个视口\n\n分屏用的是 `renderer.setViewport` 和 `renderer.setScissor`（开启 `setScissorTest(true)`），在同一画布的不同矩形区域里各渲染一次。注意坐标原点在左下角。渲染右半屏时，我们隐藏了 CameraHelper，否则相机会“看见”自己的视锥线。\n\n> 切换 perspective / orthographic，看右半屏的柱子阵列：透视下汇聚于远方，正交下保持平行。",
+    "en": "## A camera defines a visible volume\n\nWhat a camera sees is a closed volume called the **frustum**. Only things inside it get drawn. `CameraHelper` draws it as lines: the left half of the demo watches the camera from far away with a second \"observer\" camera, and the right half shows what that camera actually sees.\n\n## PerspectiveCamera\n\n`new PerspectiveCamera(fov, aspect, near, far)`\n\n- `fov`: vertical field of view in degrees. A small fov behaves like a telephoto lens and flattens depth; a large one is wide-angle and stretches the edges.\n- `aspect`: width / height, which should match the canvas (or viewport).\n- The frustum is a **pyramid** with its tip cut off, which is why distant objects look smaller: perspective.\n\n## OrthographicCamera\n\n`new OrthographicCamera(left, right, top, bottom, near, far)`\n\n- Defines a **box** in world units. Near and far objects are the same size and parallel lines stay parallel.\n- Used for 2D games, CAD, isometric views, shadow cameras and UI.\n- To avoid distortion, `(right - left) / (top - bottom)` must equal the viewport aspect; the demo updates both on resize.\n\n## near and far\n\nAnything closer than `near` or farther than `far` is clipped. Raise near and the columns closest to the camera get sliced open; lower far and distant columns vanish. Do not set near tiny (like 0.0001) and far huge \"just to be safe\": depth-buffer precision is concentrated near the camera, and an extreme ratio makes distant surfaces flicker against each other (z-fighting).\n\n## Update after every change\n\nAfter changing fov, aspect, near, far, zoom or the orthographic bounds, call `camera.updateProjectionMatrix()`, or the old projection stays in use. A `CameraHelper` also needs `helper.update()` to follow.\n\n## One canvas, two viewports\n\nThe split screen uses `renderer.setViewport` and `renderer.setScissor` (with `setScissorTest(true)`) to render twice into different rectangles of the same canvas; the origin is the bottom-left corner. While rendering the right half we hide the CameraHelper, or the camera would see its own frustum lines.\n\n> Toggle perspective and orthographic and watch the grid of columns on the right: they converge with distance in perspective and stay parallel in orthographic."
+  },
+  "keyApis": [
+    "THREE.PerspectiveCamera",
+    "THREE.OrthographicCamera",
+    "camera.updateProjectionMatrix",
+    "THREE.CameraHelper",
+    "camera.zoom",
+    "renderer.setViewport",
+    "renderer.setScissor",
+    "renderer.setScissorTest"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 near 调到 6，观察右半屏里靠近相机的柱子如何被切开。",
+      "在 updateCameras 里删掉 persp.updateProjectionMatrix()，再拖动 fov，看看会发生什么。",
+      "把 fov 调到 15 并让相机后退（改 orbit 半径），模拟长焦镜头的“压缩感”。",
+      "把正交相机放到正上方 (0, 10, 0) 往下看，做一个俯视小地图。"
+    ],
+    "en": [
+      "Set near to 6 and watch the columns closest to the camera get sliced on the right.",
+      "Delete persp.updateProjectionMatrix() from updateCameras, then drag fov and see what happens.",
+      "Set fov to 15 and move the camera back (increase the orbit radius) to mimic the compressed telephoto look.",
+      "Put the orthographic camera straight above at (0, 10, 0), looking down, for a top-down minimap."
+    ]
+  }
+}

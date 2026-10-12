@@ -11,7 +11,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#0b0b12");
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.set(4.5, 3.2, 5.5);
+camera.position.set(5, 4.6, 6.2);
 
 // Shared GLSL: the wave function, used by both materials.
 const waveChunk = /* glsl */ `
@@ -53,6 +53,7 @@ void main() {
 const fragmentShader = /* glsl */ `
 uniform vec3 uDeep;
 uniform vec3 uCrest;
+uniform vec3 uBackground;
 uniform float uAmplitude;
 in float vHeight;
 in vec3 vNormal;
@@ -68,16 +69,19 @@ void main() {
   float spec = pow(max(dot(N, normalize(L + V)), 0.0), 60.0);
   float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.0);
   vec3 c = base * (0.25 + 0.75 * diff) + spec * 0.6 + fresnel * vec3(0.45, 0.4, 0.8) * 0.6;
-  fragColor = vec4(c, 1.0);
+  c = mix(c, uBackground, smoothstep(2.8, 4.5, length(vWorld.xz))); // fade the plane's edges away
+  // We light in linear space; three.js gives us linearToOutputTexel() to encode for the screen (sRGB).
+  fragColor = linearToOutputTexel(vec4(c, 1.0));
 }`;
 
 const uniforms = {
   uTime: { value: 0 },
   uAmplitude: { value: 0.35 },
-  uFrequency: { value: 2.2 },
+  uFrequency: { value: 1.7 },
   uSpeed: { value: 1.2 },
   uDeep: { value: new THREE.Color("#1b1440") },
   uCrest: { value: new THREE.Color("#58e0d0") },
+  uBackground: { value: scene.background },
 };
 
 const shaderMat = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, glslVersion: THREE.GLSL3 });
@@ -107,7 +111,8 @@ in float vHeight;
 out vec4 fragColor;
 void main() {
   float h = clamp(vHeight / max(uAmplitude, 0.001) * 0.5 + 0.5, 0.0, 1.0);
-  fragColor = vec4(mix(uDeep, uCrest, h), 1.0);   // unlit: height → color only
+  vec3 c = mix(uDeep, uCrest, h);                   // unlit: height → color only
+  fragColor = vec4(pow(c, vec3(1.0 / 2.2)), 1.0);   // Raw: no helpers, so gamma-encode by hand
 }`,
 });
 

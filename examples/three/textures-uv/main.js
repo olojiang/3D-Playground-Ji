@@ -9,9 +9,9 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#0b0b12");
-scene.fog = new THREE.Fog("#0b0b12", 14, 40);
+scene.fog = new THREE.Fog("#0b0b12", 8, 26);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.set(0, 2.6, 7);
+camera.position.set(0.8, 2.4, 7.2);
 
 scene.add(new THREE.HemisphereLight("#ffffff", "#30304a", 1.6));
 const key = new THREE.DirectionalLight("#ffffff", 1.6);
@@ -79,8 +79,9 @@ scene.add(box, sphere, knot);
 // A long floor seen at a grazing angle: the best place to see filtering + anisotropy.
 const floorTex = makeUvGrid();
 floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-floorTex.repeat.set(10, 10);
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.9, color: "#9a9ab0" }));
+floorTex.repeat.set(16, 16);
+// (tinted dark with `color` so the props stand out)
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.9, color: "#3a3a4c" }));
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
@@ -133,7 +134,7 @@ apply();
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-controls.target.set(0, 0.9, 0);
+controls.target.set(0.8, 0.9, 0); // offset so the GUI does not cover the knot
 controls.maxPolarAngle = Math.PI * 0.49;
 
 function resize() {

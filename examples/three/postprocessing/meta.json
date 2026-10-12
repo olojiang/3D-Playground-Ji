@@ -1,0 +1,49 @@
+{
+  "slug": "postprocessing",
+  "order": 10,
+  "difficulty": "advanced",
+  "requires": "webgl",
+  "tags": [
+    "postprocessing",
+    "bloom",
+    "effect-composer",
+    "shaderpass",
+    "glsl"
+  ],
+  "title": {
+    "zh": "后期处理",
+    "en": "Post-processing"
+  },
+  "summary": {
+    "zh": "用 EffectComposer 串起 RenderPass、UnrealBloomPass、自定义 ShaderPass 和 OutputPass，做出霓虹辉光与镜头效果。",
+    "en": "Chain RenderPass, UnrealBloomPass, a custom ShaderPass and OutputPass with EffectComposer for neon glow and lens effects."
+  },
+  "concepts": {
+    "zh": "## 先渲染到纹理，再加工\n\n普通渲染直接把场景画到屏幕上。**后期处理**则先把场景画进一张离屏纹理（render target），然后用一系列全屏“滤镜”逐步加工，最后才输出到画布。辉光、景深、色彩校正、描边、抗锯齿都是这样实现的。\n\n## EffectComposer：一条通道链\n\n`EffectComposer` 管理一串 **Pass**，每个 Pass 读取上一个的结果、写入下一张纹理（内部用两张纹理来回“乒乓”）：\n\n1. `RenderPass(scene, camera)`：把场景正常渲染进纹理，是链条的起点。\n2. `UnrealBloomPass(resolution, strength, radius, threshold)`：提取比 `threshold` 更亮的部分，多级模糊后叠加回去，产生辉光。\n3. `ShaderPass(shader)`：运行你自己的片元着色器。\n4. `OutputPass()`：做色调映射（tone mapping）和 sRGB 色彩空间转换，**应当放在最后**。\n\n使用 composer 后，循环里用 `composer.render()` 代替 `renderer.render(scene, camera)`。尺寸变化时也要调用 `composer.setSize()` 和 `composer.setPixelRatio()`，因为它持有自己的渲染目标。\n\n## 让 bloom 好看的关键\n\nBloom 只挑“足够亮”的像素。场景中的霓虹环用 `emissive` + 较高的 `emissiveIntensity`，萤火虫的颜色乘以 4，都让它们的亮度超过 1.0（HDR）。而深色的金属核心不会发光。调整 threshold 就能决定谁发光。\n\n## 写一个自定义 ShaderPass\n\n一个 shader 对象包含 `uniforms`、`vertexShader` 和 `fragmentShader`。`tDiffuse` 是约定俗成的名字，composer 会自动把上一个 Pass 的结果填进去：\n\n```glsl\nvec2 dir = vUv - 0.5;\nfloat r = texture2D(tDiffuse, vUv + dir * uAberration * 2.0).r;\nfloat b = texture2D(tDiffuse, vUv - dir * uAberration * 2.0).b;\ncol *= 1.0 - uVignette * dot(dir, dir) * 1.6;\n```\n\n示例的 LensShader 做了三件事：**色差**（R、B 通道错位采样）、**暗角**（按到中心的距离压暗）和**胶片颗粒**（随时间变化的哈希噪声）。uniform 可以直接绑定到 GUI 上实时调整。\n\n## 代价\n\n每个 Pass 都是一次全屏绘制，分辨率越高越贵。Bloom 内部有多级模糊，是比较重的效果。移动端要谨慎叠加。\n\n> 关闭 enable composer，对比原始画面和后期处理后的画面。",
+    "en": "## Render to a texture, then process it\n\nA normal render draws the scene straight to the screen. **Post-processing** first draws the scene into an off-screen texture (a render target), then runs a series of full-screen \"filters\" over it before it reaches the canvas. Bloom, depth of field, colour grading, outlines and anti-aliasing all work this way.\n\n## EffectComposer: a chain of passes\n\n`EffectComposer` manages a list of **passes**. Each reads the previous result and writes the next texture (internally it ping-pongs between two):\n\n1. `RenderPass(scene, camera)`: renders the scene into a texture; the start of the chain.\n2. `UnrealBloomPass(resolution, strength, radius, threshold)`: extracts pixels brighter than `threshold`, blurs them at several scales and adds them back as glow.\n3. `ShaderPass(shader)`: runs your own fragment shader.\n4. `OutputPass()`: applies tone mapping and the sRGB colour-space conversion, and **belongs last**.\n\nWith a composer, call `composer.render()` in the loop instead of `renderer.render(scene, camera)`. On resize, also call `composer.setSize()` and `composer.setPixelRatio()`, because it owns its own render targets.\n\n## Making bloom look good\n\nBloom only picks \"bright enough\" pixels. The neon rings use `emissive` with a high `emissiveIntensity`, and the fireflies' colours are multiplied by 4, so they exceed 1.0 (HDR). The dark metal core does not glow. The threshold decides who glows.\n\n## Writing a custom ShaderPass\n\nA shader object holds `uniforms`, a `vertexShader` and a `fragmentShader`. `tDiffuse` is the conventional name the composer fills with the previous pass's output:\n\n```glsl\nvec2 dir = vUv - 0.5;\nfloat r = texture2D(tDiffuse, vUv + dir * uAberration * 2.0).r;\nfloat b = texture2D(tDiffuse, vUv - dir * uAberration * 2.0).b;\ncol *= 1.0 - uVignette * dot(dir, dir) * 1.6;\n```\n\nThe demo's LensShader does three things: **chromatic aberration** (R and B sampled at offset positions), a **vignette** (darken by distance from the centre) and **film grain** (hash noise that changes over time). Uniforms bind straight to the GUI for live tweaking.\n\n## Cost\n\nEvery pass is a full-screen draw, so higher resolutions cost more. Bloom does several blur levels internally and is one of the heavier effects. Stack passes carefully on mobile.\n\n> Turn off enable composer to compare the raw render with the post-processed one."
+  },
+  "keyApis": [
+    "EffectComposer",
+    "RenderPass",
+    "UnrealBloomPass",
+    "ShaderPass",
+    "OutputPass",
+    "composer.setSize",
+    "renderer.toneMapping",
+    "material.emissiveIntensity"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 bloom 的 threshold 调到 0，让所有东西都发光，再慢慢调高找到合适的值。",
+      "在 LensShader 里加一条扫描线：col *= 0.9 + 0.1 * sin(vUv.y * 800.0)。",
+      "把 OutputPass 挪到 ShaderPass 前面，观察颗粒和暗角的颜色有什么不同，想想为什么。",
+      "从 three/addons/postprocessing/ 再引入一个 Pass（例如 AfterimagePass），加到链条里。"
+    ],
+    "en": [
+      "Drop the bloom threshold to 0 so everything glows, then raise it until it looks right.",
+      "Add scanlines to LensShader: col *= 0.9 + 0.1 * sin(vUv.y * 800.0).",
+      "Move OutputPass before the ShaderPass and see how the grain and vignette change. Why?",
+      "Import another pass from three/addons/postprocessing/ (for example AfterimagePass) and add it to the chain."
+    ]
+  }
+}

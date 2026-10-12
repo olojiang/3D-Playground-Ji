@@ -46,9 +46,9 @@ scene.add(props);
 // Ambient: equal light everywhere, no direction, no shadows.
 const ambient = new THREE.AmbientLight("#ffffff", 0.08);
 // Hemisphere: sky colour from above, ground colour from below. Cheap "outdoor" fill.
-const hemi = new THREE.HemisphereLight("#8fb6ff", "#2a1a14", 0.35);
+const hemi = new THREE.HemisphereLight("#8fb6ff", "#2a1a14", 0.5);
 // Directional: parallel rays (the sun). Its shadow uses an ORTHOGRAPHIC shadow camera.
-const sun = new THREE.DirectionalLight("#fff1dc", 1.6);
+const sun = new THREE.DirectionalLight("#fff1dc", 2);
 sun.position.set(-5, 8, 4);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -62,7 +62,7 @@ bulb.shadow.mapSize.set(512, 512);
 bulb.shadow.radius = 4;
 bulb.add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 8), new THREE.MeshBasicMaterial({ color: "#ffb37a" })));
 // Spot: a cone with soft edge (penumbra). Shadow uses a PERSPECTIVE shadow camera.
-const spot = new THREE.SpotLight("#7fd4ff", 60, 20, Math.PI / 8, 0.4, 1.5);
+const spot = new THREE.SpotLight("#7fd4ff", 60, 11, Math.PI / 8, 0.4, 1.5);
 spot.position.set(5, 7, -2);
 spot.castShadow = true;
 spot.shadow.mapSize.set(1024, 1024);

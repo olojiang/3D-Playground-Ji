@@ -1,0 +1,46 @@
+{
+  "slug": "shader-debugging",
+  "order": 12,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "debugging",
+    "nan",
+    "precision",
+    "debug-views",
+    "compile-errors"
+  ],
+  "title": {
+    "zh": "着色器调试：用颜色“打印”数值",
+    "en": "Shader Debugging"
+  },
+  "summary": {
+    "zh": "GPU 上没有 printf：用法线、UV、深度、热力图和 NaN 检测这些调试视图看清着色器里的数值，并学会读懂编译错误。",
+    "en": "There is no printf on the GPU: use debug views for normals, UVs, depth, heatmaps and NaNs to see what a shader computes, and learn to read compile errors."
+  },
+  "concepts": {
+    "zh": "## 把数值画出来\n\n着色器同时在数百万个像素上运行，没法打断点，也没法打印。最可靠的调试手段，是把你怀疑的那个值**直接输出成颜色**。关键在于先把它映射到 0~1：\n\n```glsl\noutColor = vec4(N * 0.5 + 0.5, 1.0);   // 法线从 [-1,1] 映射到 [0,1]\n```\n\n- **法线视图**：红 = +x，绿 = +y，蓝 = +z。朝上的地面是绿色。如果出现颜色突变或全黑，说明法线没有归一化、没有变换，或者方向反了。\n- **UV 视图**：红 = u，绿 = v，再叠一层棋盘格。拉伸、接缝、UV 翻转一眼就能看出。\n- **线性深度**：把视空间深度按 near/far 归一化，近白远黑。注意 `gl_FragCoord.z` 是非线性的，直接显示几乎是一片白。\n- **热力图**：把标量映射成色带，并用醒目的颜色标出越界的值。本例中蓝色表示 < 0，红色表示 > 1。`N·L` 不做 clamp 时，背光面会立刻变蓝。\n\n## NaN 与 Inf\n\n`sqrt(-1.0)`、`0.0 / 0.0`、对零向量做 `normalize`、`pow(负数, 非整数)` 都会产生 NaN。NaN 会“传染”：任何与它运算的结果都是 NaN，最后表现为黑块、白块或闪烁的像素，而且不同 GPU 的表现还不一样。用 `isnan()` / `isinf()` 把它们涂成品红色：\n\n```glsl\nfloat risky = sqrt(vWorld.y - 0.3);\nbool bad = isnan(risky) || isinf(risky);\nc = bad ? vec3(1.0, 0.0, 1.0) : vec3(risky);\n```\n\n修复方法通常是先 clamp 输入：`sqrt(max(x, 0.0))`、`normalize(v + 1e-6)`。\n\n## 精度\n\n`precision mediump float` 在许多移动 GPU 上只有约 16 位：大约 3 位有效数字，最大值约 65504。症状是带状色阶、远处坐标抖动、时间 uniform 运行久了动画开始卡顿。片元着色器里涉及位置和时间的计算，优先使用 `highp`。\n\n## 读懂编译错误\n\n信息日志的格式通常是 `ERROR: 0:行号: 描述`。注意行号是**着色器源码**中的行号，而且 three.js 会在前面插入大量前缀代码，所以要以日志里的描述为准。最常见的错误有：漏写分号、`float a = 1;`（GLSL 不做 int 到 float 的隐式转换）、向量维度不匹配，以及拼错变量名。用面板里的“Compile errors”逐个试一遍，看看控制台怎么报。",
+    "en": "## Draw the number\n\nA shader runs on millions of pixels at once; you cannot set a breakpoint or print. The most reliable debugging tool is to **output the suspicious value as a color**. The trick is mapping it into 0–1 first:\n\n```glsl\noutColor = vec4(N * 0.5 + 0.5, 1.0);   // normals from [-1,1] to [0,1]\n```\n\n- **Normals view**: red = +x, green = +y, blue = +z. An upward-facing floor is green. Sudden color jumps or black areas mean normals are not normalized, not transformed, or flipped.\n- **UV view**: red = u, green = v, plus a checker overlay. Stretching, seams and flipped UVs jump out.\n- **Linear depth**: view-space depth normalized by near/far, white near and black far. `gl_FragCoord.z` is non-linear, so showing it directly looks almost entirely white.\n- **Heatmap**: map a scalar to a color ramp and flag out-of-range values in loud colors; here blue is < 0 and red is > 1. Unclamped `N·L` instantly turns faces away from the light blue.\n\n## NaN and Inf\n\n`sqrt(-1.0)`, `0.0 / 0.0`, `normalize` of a zero vector and `pow(negative, non-integer)` all produce NaN. NaN is contagious: anything computed with it becomes NaN, ending up as black or white blocks or flickering pixels, and different GPUs show it differently. Paint them magenta with `isnan()` / `isinf()`:\n\n```glsl\nfloat risky = sqrt(vWorld.y - 0.3);\nbool bad = isnan(risky) || isinf(risky);\nc = bad ? vec3(1.0, 0.0, 1.0) : vec3(risky);\n```\n\nThe fix is usually to clamp the input first: `sqrt(max(x, 0.0))`, `normalize(v + 1e-6)`.\n\n## Precision\n\n`precision mediump float` is only about 16 bits on many mobile GPUs: roughly 3 significant digits and a maximum around 65504. Symptoms are banding, jittery coordinates far from the origin, and animation that stutters once a time uniform grows large. Use `highp` for position and time math in fragment shaders.\n\n## Reading compile errors\n\nAn info log line usually looks like `ERROR: 0:line: message`. The line number refers to the **shader source**, and three.js inserts a long preamble before your code, so trust the message more than the number. The most common mistakes are a missing semicolon, `float a = 1;` (GLSL does no implicit int-to-float conversion), mismatched vector sizes and misspelled names. Try each one under \"Compile errors\" in the panel and see what the console reports."
+  },
+  "keyApis": [
+    "isnan",
+    "isinf",
+    "gl.getShaderInfoLog",
+    "precision highp",
+    "gl_FragCoord",
+    "THREE.ShaderMaterial",
+    "renderer.getContext"
+  ],
+  "tryThis": {
+    "zh": [
+      "切到 NaN finder，把 sqrt(vWorld.y - 0.3) 改成 sqrt(max(vWorld.y - 0.3, 0.0))，品红色就消失了。",
+      "在 depth 视图里调整 near 和 far，看看深度精度如何分布。",
+      "在顶点着色器里把 vNormal 改成 normal（不乘 modelMatrix），观察旋转时法线视图哪里出错。"
+    ],
+    "en": [
+      "In NaN finder, change sqrt(vWorld.y - 0.3) to sqrt(max(vWorld.y - 0.3, 0.0)) and the magenta disappears.",
+      "In the depth view, adjust near and far and see how depth precision is spread.",
+      "In the vertex shader, set vNormal = normal without modelMatrix and see what goes wrong in the normals view as shapes rotate."
+    ]
+  }
+}

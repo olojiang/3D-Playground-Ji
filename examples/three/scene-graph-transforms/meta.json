@@ -1,0 +1,50 @@
+{
+  "slug": "scene-graph-transforms",
+  "order": 6,
+  "difficulty": "beginner",
+  "requires": "webgl",
+  "tags": [
+    "scene-graph",
+    "object3d",
+    "transforms",
+    "hierarchy",
+    "world-space"
+  ],
+  "title": {
+    "zh": "场景图与变换",
+    "en": "Scene Graph & Transforms"
+  },
+  "summary": {
+    "zh": "用嵌套的枢轴（pivot）搭一个小太阳系，弄懂局部坐标和世界坐标的区别。",
+    "en": "Build a small solar system from nested pivots and learn the difference between local and world transforms."
+  },
+  "concepts": {
+    "zh": "## 场景是一棵树\n\n`Scene` 本身就是一个 `Object3D`，所有物体通过 `parent.add(child)` 挂成一棵树。每个 `Object3D` 都有三项**局部变换**：\n\n- `position`：相对父节点的位置\n- `rotation` / `quaternion`：相对父节点的旋转\n- `scale`：相对父节点的缩放\n\n“相对父节点”是关键：子节点的最终位置 = 父节点的世界矩阵 × 子节点的局部矩阵。three.js 每帧把这些矩阵沿树向下相乘，得到每个物体的 `matrixWorld`。\n\n## 枢轴技巧（pivot）\n\n想让地球绕太阳转，最简单的办法不是每帧用三角函数算坐标，而是：\n\n1. 在太阳的位置放一个空的 `Object3D` 作为枢轴；\n2. 把地球放进枢轴，并设置 `position.x = 半径`；\n3. 每帧只旋转枢轴的 `rotation.y`。\n\n枢轴一转，挂在下面的一切都跟着绕圈。月球同理：它的枢轴挂在**地球的框架**下面，所以它既绕地球转，又被地球带着绕太阳转。土星环挂在土星的框架上，继承了倾角，却不会跟着星球自转，因为自转只作用在星球的网格本身。\n\n## 局部坐标 vs 世界坐标\n\n月球框架的 `position` 永远是 (0.95, 0, 0)，因为它相对父节点从未移动；但它在世界中的位置每帧都在变。要得到世界坐标，用 `object.getWorldPosition(target)`。示例把一个直接挂在场景下的绿色圆环移动到月球的世界坐标，状态栏同时打印两种坐标。\n\n## 父节点的缩放和旋转会传给子节点\n\n拖动 “scale (root)”：缩放根节点会让整个太阳系连同轨道一起缩放，因为缩放同样沿树传递。打开 “local axes”，每个星球上的小坐标轴显示的就是它自己的局部坐标系，你会看到地球的轴是倾斜的。\n\n> 想把物体换一个父节点又保持它在世界中的位置不变？用 `newParent.attach(object)` 而不是 `add`。",
+    "en": "## The scene is a tree\n\n`Scene` is itself an `Object3D`, and everything hangs from it through `parent.add(child)`. Each `Object3D` has three **local transforms**:\n\n- `position`: where it is relative to its parent\n- `rotation` / `quaternion`: how it is turned relative to its parent\n- `scale`: how it is sized relative to its parent\n\n\"Relative to its parent\" is the key idea: a child's final placement is the parent's world matrix times the child's local matrix. Every frame three.js multiplies these down the tree to produce each object's `matrixWorld`.\n\n## The pivot trick\n\nTo make the Earth orbit the Sun, you do not compute coordinates with sine and cosine every frame. Instead:\n\n1. Put an empty `Object3D` at the Sun's position as a pivot.\n2. Put the Earth inside the pivot with `position.x = radius`.\n3. Each frame, only rotate the pivot's `rotation.y`.\n\nTurn the pivot and everything under it swings around. The Moon works the same way: its pivot hangs under the **Earth's frame**, so it circles the Earth while being carried around the Sun. Saturn's ring hangs on Saturn's frame, so it inherits the tilt but not the planet's spin, because the spin is applied only to the planet mesh itself.\n\n## Local vs world\n\nThe Moon frame's `position` is always (0.95, 0, 0) because it never moves relative to its parent, yet its position in the world changes every frame. Get world coordinates with `object.getWorldPosition(target)`. The demo moves a green ring that lives directly in the scene to the Moon's world position, and the status line prints both values.\n\n## Parents pass scale and rotation down\n\nDrag \"scale (root)\": scaling the root scales the whole system, orbits included, because scale flows down the tree too. Turn on \"local axes\" to see each body's own coordinate system; notice that the Earth's axes are tilted.\n\n> Need to move an object to a new parent while keeping it where it is in the world? Use `newParent.attach(object)` instead of `add`."
+  },
+  "keyApis": [
+    "THREE.Object3D",
+    "object.add",
+    "object.position",
+    "object.rotation",
+    "object.scale",
+    "object.getWorldPosition",
+    "object.matrixWorld",
+    "scene.updateMatrixWorld",
+    "THREE.AxesHelper"
+  ],
+  "tryThis": {
+    "zh": [
+      "给月球再加一颗“小卫星”：调用 addPlanet(moon.frame, {...})，看看三层嵌套的运动。",
+      "把地球的 tilt 改为 0，对比月球轨道平面的变化。",
+      "把土星环从 saturn.frame 移到 saturn.body 下，环会开始跟着自转，想想为什么。",
+      "用 sun.attach(marker) 代替 scene.add(marker)，观察世界坐标是否被保留。"
+    ],
+    "en": [
+      "Give the Moon a tiny satellite with addPlanet(moon.frame, {...}) and watch three levels of nesting.",
+      "Set the Earth's tilt to 0 and compare the plane of the Moon's orbit.",
+      "Move Saturn's ring from saturn.frame to saturn.body. It starts spinning with the planet; work out why.",
+      "Use sun.attach(marker) instead of scene.add(marker) and check whether its world position is kept."
+    ]
+  }
+}

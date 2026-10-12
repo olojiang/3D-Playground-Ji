@@ -73,3 +73,6 @@ export function resumeTarget(progress: ProgressEntry[], catalog: { category: Cat
 }
 
 export const newId = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`).replace(/-/g, "").slice(0, 20);
+
+/** Language names are shown in their own language, so they live here rather than in the i18n dictionary. */
+export const LANG_NAME: Record<Lang, { short: string; full: string }> = { zh: { short: "中文", full: "中文" }, en: { short: "EN", full: "English" } };

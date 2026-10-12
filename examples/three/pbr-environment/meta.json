@@ -1,0 +1,53 @@
+{
+  "slug": "pbr-environment",
+  "order": 11,
+  "difficulty": "advanced",
+  "requires": "webgl",
+  "tags": [
+    "pbr",
+    "environment",
+    "pmrem",
+    "physical-material",
+    "tone-mapping"
+  ],
+  "title": {
+    "zh": "PBR 与环境光照",
+    "en": "PBR & Environment Lighting"
+  },
+  "summary": {
+    "zh": "用 PMREMGenerator + RoomEnvironment 做基于图像的光照，体验 MeshPhysicalMaterial 的清漆、透射、虹彩，以及各种色调映射。",
+    "en": "Image-based lighting with PMREMGenerator and RoomEnvironment, MeshPhysicalMaterial clearcoat, transmission and iridescence, and tone mapping options."
+  },
+  "concepts": {
+    "zh": "## 基于图像的光照（IBL）\n\n真实世界的物体不只被几盏灯照亮，而是被**整个环境**照亮：天花板、墙壁、窗户都在反射光。IBL 用一张环境贴图代表四面八方射来的光，让 PBR 材质的反射和漫反射都更可信。\n\n`RoomEnvironment` 是 three.js 自带的一个程序化“摄影棚”场景，不需要下载任何 HDR 文件。`PMREMGenerator` 把它渲染并**预过滤**成一组 mip 层级：越粗糙的表面读取越模糊的层级。\n\n```js\nconst pmrem = new THREE.PMREMGenerator(renderer);\nscene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;\n```\n\n设置 `scene.environment` 后，场景中所有 Standard / Physical 材质都会自动使用它；`scene.environmentIntensity` 统一调节强度。想把环境也显示为背景，可以设置 `scene.background`，并用 `backgroundBlurriness` 让它虚化。\n\n## MeshPhysicalMaterial 的额外层\n\nPhysical 在 Standard 的 roughness / metalness 之上增加了几层物理效果：\n\n- **clearcoat（清漆）**：在底色之上再加一层透明、光滑的涂层。示例中红色车漆的底层较粗糙，但清漆层依然有锐利的反射。\n- **transmission（透射）**：光线穿过物体，用于玻璃、水、宝石。配合 `thickness`（厚度）、`ior`（折射率，玻璃约 1.5）、`attenuationColor`（体积吸收的颜色）和 `dispersion`（色散）。透射需要额外渲染一遍场景，所以背后的彩色灯柱会被折射、扭曲。\n- **iridescence（虹彩）**：薄膜干涉，像肥皂泡或油膜那样随角度变色。`iridescenceThicknessRange` 是薄膜厚度（纳米）。\n\n## 色调映射（Tone Mapping）\n\n光照计算在 HDR 线性空间中进行，亮度可以远超 1.0；屏幕却只能显示 0–1。色调映射负责把 HDR 压缩到可显示范围：\n\n- **None / Linear**：直接截断，高光容易过曝成一片白。\n- **Reinhard、Cineon**：较早的经典曲线。\n- **ACESFilmic**：电影感强、对比高，但会让饱和色偏移。\n- **AgX**：对高亮饱和色处理更自然（示例默认）。\n- **Neutral**：尽量保持原始色彩，适合产品展示。\n\n`toneMappingExposure` 相当于相机曝光。\n\n> 切换几种 toneMapping，重点观察背后彩色灯柱和红色车漆高光的变化。",
+    "en": "## Image-based lighting (IBL)\n\nReal objects are not lit by a few lamps but by **the whole environment**: ceilings, walls and windows all bounce light. IBL uses an environment map to represent light arriving from every direction, which makes both reflections and diffuse shading of PBR materials believable.\n\n`RoomEnvironment` is a procedural \"photo studio\" scene bundled with three.js, so no HDR file is needed. `PMREMGenerator` renders it and **pre-filters** it into mip levels: rougher surfaces read blurrier levels.\n\n```js\nconst pmrem = new THREE.PMREMGenerator(renderer);\nscene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;\n```\n\nWith `scene.environment` set, every Standard and Physical material in the scene uses it automatically, and `scene.environmentIntensity` scales it. To show the environment as the backdrop too, assign it to `scene.background` and soften it with `backgroundBlurriness`.\n\n## The extra layers of MeshPhysicalMaterial\n\nPhysical adds physical layers on top of Standard's roughness and metalness:\n\n- **clearcoat**: a clear, smooth coating over the base. The red car paint has a fairly rough base, yet the clearcoat still shows sharp reflections.\n- **transmission**: light passes through the object, for glass, water and gems. Combine with `thickness`, `ior` (index of refraction; about 1.5 for glass), `attenuationColor` (volume absorption tint) and `dispersion` (rainbow splitting). Transmission renders the scene an extra time, which is why the coloured bars behind the sphere are refracted and bent.\n- **iridescence**: thin-film interference that shifts colour with viewing angle, like soap bubbles or oil. `iridescenceThicknessRange` is the film thickness in nanometres.\n\n## Tone mapping\n\nLighting is computed in HDR linear space where values can far exceed 1.0, but screens show only 0–1. Tone mapping compresses HDR into the displayable range:\n\n- **None / Linear**: plain clipping; highlights blow out to white.\n- **Reinhard, Cineon**: older classic curves.\n- **ACESFilmic**: filmic and contrasty, but it shifts saturated colours.\n- **AgX**: handles bright saturated colours more naturally (the demo default).\n- **Neutral**: keeps base colours as faithful as possible; good for product shots.\n\n`toneMappingExposure` works like camera exposure.\n\n> Cycle through toneMapping options and watch the coloured bars and the red paint's highlights."
+  },
+  "keyApis": [
+    "THREE.PMREMGenerator",
+    "RoomEnvironment",
+    "scene.environment",
+    "scene.environmentIntensity",
+    "scene.backgroundBlurriness",
+    "THREE.MeshPhysicalMaterial",
+    "material.clearcoat",
+    "material.transmission",
+    "material.iridescence",
+    "renderer.toneMapping",
+    "THREE.AgXToneMapping",
+    "renderer.toneMappingExposure"
+  ],
+  "tryThis": {
+    "zh": [
+      "勾选 env as background，把 backgroundBlurriness 调到 0，看看 RoomEnvironment 长什么样。",
+      "把玻璃的 roughness 调到 0.3，得到磨砂玻璃；再把 dispersion 调高观察彩虹边。",
+      "把 envIntensity 调到 0，只剩一盏平行光时，三种材质还剩下什么？",
+      "把车漆的 clearcoat 设为 0，比较有无清漆的反射差别。"
+    ],
+    "en": [
+      "Tick env as background and set backgroundBlurriness to 0 to see what RoomEnvironment looks like.",
+      "Set the glass roughness to 0.3 for frosted glass, then raise dispersion to see rainbow fringes.",
+      "Set envIntensity to 0: with only one directional light left, what remains of each material?",
+      "Set the car paint's clearcoat to 0 and compare the reflections with and without it."
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "slug": "geometry-buffergeometry",
+  "order": 2,
+  "difficulty": "beginner",
+  "requires": "webgl",
+  "tags": [
+    "geometry",
+    "buffergeometry",
+    "attributes",
+    "index",
+    "normals"
+  ],
+  "title": {
+    "zh": "几何体与 BufferGeometry",
+    "en": "Geometry & BufferGeometry"
+  },
+  "summary": {
+    "zh": "先认识内置几何体，再亲手用 position / normal / uv 属性和索引拼出一块会动的曲面。",
+    "en": "Meet the built-in shapes, then build an animated surface by hand from position, normal and uv attributes plus an index."
+  },
+  "concepts": {
+    "zh": "## 几何体就是一堆顶点数据\n\n在 three.js 里，所有形状最终都是 `BufferGeometry`：一组**顶点属性**（attribute），每个属性是一段连续的类型化数组（`Float32Array`），会被原样上传到 GPU 显存。`BoxGeometry`、`SphereGeometry`、`TorusKnotGeometry` 这些内置几何体，只是帮你把这些数组算好了而已。\n\n## 三个最常用的属性\n\n- **position**：每个顶点的 xyz 坐标，`itemSize = 3`。\n- **normal**：每个顶点的法线（垂直于表面的单位向量），光照计算全靠它。法线错了，物体就会“发黑”或光照怪异。\n- **uv**：每个顶点的纹理坐标 (u, v)，范围通常是 0–1，`itemSize = 2`，决定贴图怎么铺在表面上。\n\n用 `geometry.setAttribute(\"position\", new THREE.BufferAttribute(array, 3))` 把数组交给几何体。\n\n## 索引：让顶点被共享\n\n网格由三角形组成。如果不用索引，每个三角形都要存 3 个独立顶点，相邻三角形的公共顶点会被重复存储。调用 `geometry.setIndex([...])` 后，三角形只记录“用第几号顶点”，同一个顶点可以被多个三角形复用。示例中的曲面每个格子由两个三角形组成：\n\n```js\nconst a = j * (n + 1) + i, b = a + 1, c = a + (n + 1), d = c + 1;\nindices.push(a, c, b,  b, c, d);\n```\n\n顶点的**环绕顺序**很重要：从正面看是逆时针的三角形才是正面（front face），背面默认会被剔除。示例材质用了 `DoubleSide`，所以从下面看也能看到。\n\n## 动态更新\n\n想让几何体动起来，可以每帧直接改写数组里的数字，然后设置 `attribute.needsUpdate = true`，three.js 就会把新数据重新上传。频繁更新的属性最好调用 `setUsage(THREE.DynamicDrawUsage)` 提示驱动。示例里的法线是根据波函数的导数**解析计算**的；更省事的做法是 `geometry.computeVertexNormals()`，它会根据相邻三角形自动估算法线。\n\n> 打开 showNormals，黄色短线就是 normal 属性；把 segments 调小，可以清楚看到三角形是怎么拼起来的。",
+    "en": "## A geometry is just vertex data\n\nEvery shape in three.js ends up as a `BufferGeometry`: a set of **vertex attributes**, each one a flat typed array (`Float32Array`) that is uploaded to GPU memory as-is. Built-ins like `BoxGeometry`, `SphereGeometry` and `TorusKnotGeometry` simply compute those arrays for you.\n\n## The three attributes you will use most\n\n- **position**: the xyz of each vertex, `itemSize = 3`.\n- **normal**: a unit vector perpendicular to the surface at each vertex. Lighting depends on it entirely; wrong normals mean dark or strangely lit surfaces.\n- **uv**: texture coordinates (u, v), usually 0–1, `itemSize = 2`. They decide how an image is laid onto the surface.\n\nHand an array to the geometry with `geometry.setAttribute(\"position\", new THREE.BufferAttribute(array, 3))`.\n\n## The index: sharing vertices\n\nA mesh is made of triangles. Without an index, every triangle stores three vertices of its own and shared corners are duplicated. With `geometry.setIndex([...])`, triangles only say *which* vertex numbers they use, so one vertex can serve many triangles. Each grid cell of the custom surface is two triangles:\n\n```js\nconst a = j * (n + 1) + i, b = a + 1, c = a + (n + 1), d = c + 1;\nindices.push(a, c, b,  b, c, d);\n```\n\n**Winding order** matters: a triangle that appears counter-clockwise from the viewer is the front face, and back faces are culled by default. The demo material uses `DoubleSide`, so you can see the surface from below too.\n\n## Updating it every frame\n\nTo animate a geometry, overwrite the numbers in its arrays and set `attribute.needsUpdate = true`; three.js re-uploads the data. Mark frequently changing attributes with `setUsage(THREE.DynamicDrawUsage)` as a hint to the driver. The demo computes normals **analytically** from the derivative of the wave; the lazy alternative is `geometry.computeVertexNormals()`, which estimates them from neighbouring triangles.\n\n> Turn on showNormals: the yellow ticks are the normal attribute. Lower segments to see exactly how the triangles fit together."
+  },
+  "keyApis": [
+    "THREE.BufferGeometry",
+    "THREE.BufferAttribute",
+    "geometry.setAttribute",
+    "geometry.setIndex",
+    "attribute.needsUpdate",
+    "THREE.DynamicDrawUsage",
+    "THREE.TorusKnotGeometry",
+    "VertexNormalsHelper"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 indices.push(a, c, b, b, c, d) 改成 push(a, b, c, b, d, c)，翻转环绕顺序，再把材质改回 FrontSide，看看哪一面消失了。",
+      "删掉 normal 属性的计算，改为每帧调用 geometry.computeVertexNormals()，比较效果和性能。",
+      "把 segments 调到 2，开启 wireframe，数一数三角形数量是否和状态栏一致。",
+      "修改 height 函数，做一个从中心向外扩散的涟漪：sin(距离 * k - t)。"
+    ],
+    "en": [
+      "Change indices.push(a, c, b, b, c, d) to push(a, b, c, b, d, c) to flip the winding, set the material back to FrontSide, and see which side disappears.",
+      "Drop the analytic normals and call geometry.computeVertexNormals() every frame instead. Compare the look and the cost.",
+      "Set segments to 2, turn on wireframe, and check the triangle count against the status line.",
+      "Rewrite the height function as a ripple spreading from the centre: sin(distance * k - t)."
+    ]
+  }
+}

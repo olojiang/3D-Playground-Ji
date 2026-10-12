@@ -10,6 +10,7 @@ for (const category of ["three", "webgl", "gpu"]) {
   for (const slug of fs.readdirSync(dir).sort()) {
     const d = path.join(dir, slug);
     if (!fs.statSync(d).isDirectory()) continue;
+    if (!fs.existsSync(path.join(d, "meta.json")) || !fs.existsSync(path.join(d, "main.js"))) { console.warn(`skip incomplete example ${category}/${slug}`); continue; }
     const meta = JSON.parse(fs.readFileSync(path.join(d, "meta.json"), "utf8"));
     const code = fs.readFileSync(path.join(d, "main.js"), "utf8");
     out.push({ ...meta, category, dir: slug, code });

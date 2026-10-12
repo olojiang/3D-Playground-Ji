@@ -1,0 +1,47 @@
+{
+  "slug": "three-shadermaterial",
+  "order": 9,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "three",
+    "shadermaterial",
+    "rawshadermaterial",
+    "vertex-displacement",
+    "uniforms"
+  ],
+  "title": {
+    "zh": "three.js ShaderMaterial：自定义顶点波浪",
+    "en": "three.js ShaderMaterial"
+  },
+  "summary": {
+    "zh": "在 three.js 场景里写自己的 GLSL：顶点着色器把平面推成波浪，片元着色器负责光照，GUI 实时调 uniform。",
+    "en": "Write your own GLSL inside a three.js scene: the vertex shader pushes a plane into waves, the fragment shader lights it, and the GUI drives the uniforms."
+  },
+  "concepts": {
+    "zh": "## 为什么在 three.js 里写着色器\n\nthree.js 的内置材质覆盖了大多数需求，但遇到波浪、溶解、全息这类效果时，你需要自己的着色器，同时又想保留 three.js 的场景、相机、控制器和渲染循环。`ShaderMaterial` 正好是这座桥。\n\n## ShaderMaterial：three.js 帮你补齐前缀\n\n使用 `ShaderMaterial` 时，three.js 会在你的代码前自动插入常用声明：\n\n- 矩阵：`modelMatrix`、`viewMatrix`、`projectionMatrix`、`modelViewMatrix`、`normalMatrix`\n- 相机位置：`cameraPosition`\n- 几何属性：`position`、`normal`、`uv`\n\n再设置 `glslVersion: THREE.GLSL3`，three.js 会替你写上 `#version 300 es`，所以字符串里**不要**再写版本行，直接用 `in` / `out` 即可。在片元着色器结尾调用 `linearToOutputTexel()`，把线性空间的颜色编码成屏幕所需的 sRGB。\n\n## RawShaderMaterial：什么都自己来\n\n`RawShaderMaterial` 除了版本行之外什么都不加：精度、矩阵 uniform、`in vec3 position` 都要自己声明。它更啰嗦，但也更透明，适合想精确掌控每一行的人。面板里可以在两种材质之间切换，它们共用同一个 uniforms 对象。\n\n## 顶点位移\n\n`PlaneGeometry(9, 9, 220, 220)` 提供大约 5 万个顶点。顶点着色器把每个顶点沿法线方向推高：\n\n```glsl\nvec3 p = position;\np.z += wave(p.xy);   // 几个正弦波叠加\n```\n\n位移之后原来的法线就不对了。用有限差分估算坡度，重新构造法线：\n\n```glsl\nfloat dx = wave(p.xy + vec2(e, 0.0)) - wave(p.xy - vec2(e, 0.0));\nfloat dy = wave(p.xy + vec2(0.0, e)) - wave(p.xy - vec2(0.0, e));\nvNormal = normalize(normalMatrix * vec3(-dx, -dy, 2.0 * e));\n```\n\n## uniforms：JS 与 GLSL 的接口\n\nuniform 写成 `{ uTime: { value: 0 } }` 的形式。每帧改 `uniforms.uTime.value`，three.js 就会自动上传，无需手动调用 `gl.uniform*`。lil-gui 可以直接绑定到 `uniforms.uAmplitude` 的 `value` 上，拖动滑块即可实时生效。颜色用 `THREE.Color`，three.js 会把它转换到线性空间。\n\n## 调试\n\n给 `renderer.debug.onShaderError` 设置回调，可以拿到原始的着色器信息日志并用 `console.error` 打印出来。",
+    "en": "## Why write shaders inside three.js\n\nthree.js's built-in materials cover most needs, but effects like waves, dissolves or holograms need your own shader, and you still want three.js's scene, camera, controls and render loop. `ShaderMaterial` is the bridge.\n\n## ShaderMaterial: three.js fills in the preamble\n\nWith `ShaderMaterial`, three.js inserts the common declarations before your code:\n\n- matrices: `modelMatrix`, `viewMatrix`, `projectionMatrix`, `modelViewMatrix`, `normalMatrix`\n- the camera position: `cameraPosition`\n- geometry attributes: `position`, `normal`, `uv`\n\nSet `glslVersion: THREE.GLSL3` and three.js writes `#version 300 es` for you, so your strings must **not** include the version line; just use `in` / `out`. End the fragment shader with `linearToOutputTexel()` to encode the linear color as the sRGB the screen expects.\n\n## RawShaderMaterial: you do everything\n\n`RawShaderMaterial` adds nothing except the version line: precision, the matrix uniforms and `in vec3 position` are all yours to declare. It is more verbose but fully transparent, for when you want control over every line. The panel switches between the two materials, which share one uniforms object.\n\n## Vertex displacement\n\n`PlaneGeometry(9, 9, 220, 220)` provides about 50,000 vertices. The vertex shader pushes each one along the plane's normal:\n\n```glsl\nvec3 p = position;\np.z += wave(p.xy);   // a few summed sine waves\n```\n\nAfter displacement the original normals are wrong. Estimate the slope with finite differences and rebuild the normal:\n\n```glsl\nfloat dx = wave(p.xy + vec2(e, 0.0)) - wave(p.xy - vec2(e, 0.0));\nfloat dy = wave(p.xy + vec2(0.0, e)) - wave(p.xy - vec2(0.0, e));\nvNormal = normalize(normalMatrix * vec3(-dx, -dy, 2.0 * e));\n```\n\n## Uniforms: the JS ↔ GLSL interface\n\nUniforms are written as `{ uTime: { value: 0 } }`. Change `uniforms.uTime.value` each frame and three.js uploads it for you; no manual `gl.uniform*` calls. lil-gui can bind straight to the `value` of `uniforms.uAmplitude`, so sliders take effect live. Colors use `THREE.Color`, which three.js converts to linear space.\n\n## Debugging\n\nSet a callback on `renderer.debug.onShaderError` to receive the raw shader info logs and print them with `console.error`."
+  },
+  "keyApis": [
+    "THREE.ShaderMaterial",
+    "THREE.RawShaderMaterial",
+    "THREE.GLSL3",
+    "uniforms.value",
+    "PlaneGeometry",
+    "normalMatrix",
+    "linearToOutputTexel",
+    "renderer.debug.onShaderError"
+  ],
+  "tryThis": {
+    "zh": [
+      "打开 wireframe，看看位移后的网格。",
+      "把 PlaneGeometry 的分段数改成 20，波浪会变成什么样？",
+      "在 wave() 里加入以鼠标位置为中心的圆形涟漪（新增一个 uMouse uniform）。"
+    ],
+    "en": [
+      "Turn on wireframe to see the displaced mesh.",
+      "Drop the PlaneGeometry segments to 20: what happens to the waves?",
+      "Add a circular ripple centered on the mouse inside wave(), with a new uMouse uniform."
+    ]
+  }
+}

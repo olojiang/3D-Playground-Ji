@@ -61,10 +61,12 @@ out vec4 outColor;
 void main() {
   vec3 L = normalize(vec3(0.5, 0.8, 0.6));
   float diffuse = max(dot(normalize(vNormal), L), 0.0);
-  vec3 c = vColor * (0.28 + 0.8 * diffuse) * uTint;
+  vec3 N = normalize(vNormal);
+  float diffuse2 = max(dot(N, normalize(vec3(-0.7, -0.2, 0.4))), 0.0); // dim cool fill light
+  vec3 c = vColor * (0.12 + 0.95 * diffuse + 0.25 * diffuse2 * vec3(0.6, 0.7, 1.0)) * uTint;
   // gl_FrontFacing tells us if we are seeing a back face (only visible with culling off)
   if (!gl_FrontFacing) c = vec3(0.9, 0.1, 0.35) * 0.6;
-  outColor = vec4(pow(c, vec3(1.0 / 2.2)), 1.0);
+  outColor = vec4(c, 1.0);
 }`;
 
 function compile(type, src) {
@@ -104,7 +106,7 @@ for (let i = 0; i < 3; i++) {
   gl.vertexAttribPointer(i, 3, gl.FLOAT, false, 36, i * 12); // 9 floats per vertex
 }
 
-const params = { speed: 0.7, fov: 50, distance: 4.2, depthTest: true, cullBackFaces: true };
+const params = { speed: 0.7, fov: 50, distance: 3.8, depthTest: true, cullBackFaces: true };
 const gui = new GUI({ title: "Parameters" });
 gui.add(params, "speed", 0, 3, 0.01);
 gui.add(params, "fov", 20, 110, 1).name("fov (projection)");

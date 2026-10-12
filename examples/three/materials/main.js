@@ -12,7 +12,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#0b0b12");
 const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-camera.position.set(0, 2.2, 13);
+camera.position.set(0.5, 1.2, 10.5);
 
 // An environment map gives Standard/Physical something to reflect (metals look black without one).
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -67,19 +67,20 @@ function label(text) {
 
 const geometry = new THREE.TorusKnotGeometry(0.42, 0.15, 160, 24);
 const meshes = [];
-const spacing = 1.55;
+// Two rows (3 + 4) so every sample is big enough to read.
 materials.forEach(([name, mat], i) => {
-  const x = (i - (materials.length - 1) / 2) * spacing;
+  const row = i < 3 ? 0 : 1, col = i < 3 ? i : i - 3;
+  const x = row ? (col - 1.5) * 1.75 : (col - 1) * 1.75 - 0.9, y0 = row ? -1.5 : 1.1;
   const mesh = new THREE.Mesh(geometry, mat);
-  mesh.position.set(x, 0.8, 0);
+  mesh.position.set(x, y0 + 0.8, 0);
   scene.add(mesh);
   meshes.push(mesh);
   const l = label(name);
-  l.position.set(x, -0.15, 0);
+  l.position.set(x, y0 - 0.17, 0);
   scene.add(l);
   // a small pedestal under each sample
   const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.08, 48), new THREE.MeshStandardMaterial({ color: "#1b1b28", roughness: 0.6 }));
-  ped.position.set(x, 0.12, 0);
+  ped.position.set(x, y0 + 0.12, 0);
   scene.add(ped);
 });
 
@@ -100,14 +101,14 @@ gui.add(params, "rotate");
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-controls.target.set(0, 0.6, 0);
+controls.target.set(0.5, 0.25, 0); // offset right so the GUI does not cover the samples
 
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  // Pull the camera back on narrow screens so all seven samples stay in view.
-  camera.position.setLength(Math.max(11, 13 * (1.6 / camera.aspect)));
+  // Pull the camera back on narrow screens so all samples stay in view.
+  camera.position.z = Math.max(10.5, 10.5 * (1.6 / camera.aspect));
   camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(canvas);
@@ -117,7 +118,7 @@ const timer = new THREE.Timer();
 renderer.setAnimationLoop((time) => {
   timer.update(time);
   const t = timer.getElapsed(), dt = timer.getDelta();
-  orbitLight.position.set(Math.sin(t * 0.7) * 5.5, 1.8 + Math.sin(t * 1.3) * 0.6, 2.2);
+  orbitLight.position.set(Math.sin(t * 0.7) * 4, 0.5 + Math.sin(t * 1.3) * 1.5, 2.2);
   if (params.rotate) meshes.forEach((m) => (m.rotation.y += dt * 0.4));
   controls.update();
   renderer.render(scene, camera);

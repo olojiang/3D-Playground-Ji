@@ -1,0 +1,52 @@
+{
+  "slug": "textures-uv",
+  "order": 5,
+  "difficulty": "intermediate",
+  "requires": "webgl",
+  "tags": [
+    "textures",
+    "uv",
+    "filtering",
+    "anisotropy",
+    "color-space"
+  ],
+  "title": {
+    "zh": "纹理与 UV",
+    "en": "Textures & UVs"
+  },
+  "summary": {
+    "zh": "用 CanvasTexture 和 DataTexture 生成贴图，理解 UV 映射、平铺、偏移、过滤、各向异性与色彩空间。",
+    "en": "Generate textures with CanvasTexture and DataTexture, then explore UV mapping, wrapping, repeat, offset, filtering, anisotropy and colour space."
+  },
+  "concepts": {
+    "zh": "## 纹理从哪来\n\n纹理就是一张交给 GPU 的图像。本示例不加载任何图片文件，而是**程序化生成**：\n\n- `CanvasTexture`：先用 2D Canvas API 画格子、写字，再把这块 canvas 当作纹理上传。\n- `DataTexture`：直接用 `Uint8Array` 填 RGBA 字节，适合噪声、查找表、计算结果。数据准备好后要设置 `texture.needsUpdate = true`。\n\n## UV：贴图的坐标系\n\n每个顶点都有一个 uv 属性，(0,0) 是图像**左下角**，(1,1) 是右上角。注意 Canvas 的原点在左上角，three.js 默认 `flipY = true` 帮你翻转了。不同几何体的 UV 布局不同：立方体每个面都拿到完整的 0–1；球体的 u 绕赤道一圈、v 从南极到北极；圆环结的 u 沿着管子方向。贴图上的格子编号让你一眼看出 UV 是怎么铺的。\n\n## 平铺、偏移、旋转\n\n- `texture.repeat`：大于 1 时图像会重复多次。\n- `texture.offset`：平移图像。\n- `texture.rotation` 与 `texture.center`：绕某点旋转。\n- `wrapS / wrapT`：UV 超出 0–1 时怎么办。`RepeatWrapping` 重复，`MirroredRepeatWrapping` 镜像重复，`ClampToEdgeWrapping`（默认）拉伸边缘像素。所以只设置 repeat 却不改 wrap，你会看到边缘被拉长的条纹。\n\n## 过滤与 Mipmap\n\n一个纹素（texel）在屏幕上可能比像素大，也可能比像素小：\n\n- `magFilter`（放大）：`NearestFilter` 得到清晰的像素块，`LinearFilter` 平滑插值。\n- `minFilter`（缩小）：远处纹理会闪烁，需要 **mipmap**（预先缩小的图像金字塔）。`LinearMipmapLinearFilter` 最平滑。\n\n**各向异性过滤**（`anisotropy`）专治倾斜角度下的模糊。地板是最好的观察对象：把 anisotropy 从 1 调到最大，远处的格子会明显变清晰。最大值由 `renderer.capabilities.getMaxAnisotropy()` 给出。\n\n## 色彩空间\n\n颜色贴图通常是在 sRGB 空间里制作的，所以要设置 `texture.colorSpace = THREE.SRGBColorSpace`，让 three.js 在光照计算前把它转换到线性空间。法线贴图、粗糙度贴图这类“数据”纹理则保持 `NoColorSpace`。\n\n> 取消勾选 colorSpace = sRGB，颜色会立刻变得发灰、偏淡，这就是忘记设置色彩空间的典型症状。",
+    "en": "## Where textures come from\n\nA texture is an image handed to the GPU. This demo loads no image files; it **generates** them:\n\n- `CanvasTexture`: draw grids and text with the 2D Canvas API, then upload that canvas as a texture.\n- `DataTexture`: fill a `Uint8Array` with RGBA bytes directly. Ideal for noise, lookup tables and computed data. Set `texture.needsUpdate = true` once the data is ready.\n\n## UVs: the texture's coordinate system\n\nEvery vertex has a uv attribute. (0,0) is the **bottom-left** of the image and (1,1) the top-right. A canvas has its origin at the top-left; three.js flips it for you because `flipY = true` by default. UV layouts differ per geometry: each box face gets the full 0–1 square, a sphere's u runs around the equator and v from pole to pole, and a torus knot's u follows the tube. The labelled grid lets you read the layout at a glance.\n\n## Repeat, offset, rotation\n\n- `texture.repeat`: values above 1 tile the image.\n- `texture.offset`: slides it.\n- `texture.rotation` with `texture.center`: rotates around a point.\n- `wrapS / wrapT`: what happens outside 0–1. `RepeatWrapping` tiles, `MirroredRepeatWrapping` tiles with mirroring, and `ClampToEdgeWrapping` (the default) smears the edge pixels. That is why setting repeat without changing wrap gives stretched stripes.\n\n## Filtering and mipmaps\n\nA texel can cover more or less than one screen pixel:\n\n- `magFilter` (magnification): `NearestFilter` gives crisp blocks, `LinearFilter` interpolates smoothly.\n- `minFilter` (minification): distant textures shimmer unless you use **mipmaps**, a pyramid of pre-shrunk images. `LinearMipmapLinearFilter` is the smoothest.\n\n**Anisotropic filtering** (`anisotropy`) fixes blur at grazing angles. The floor is the place to look: move anisotropy from 1 to the maximum and the far tiles sharpen noticeably. The maximum comes from `renderer.capabilities.getMaxAnisotropy()`.\n\n## Colour space\n\nColour textures are authored in sRGB, so set `texture.colorSpace = THREE.SRGBColorSpace` and three.js converts them to linear space before lighting. Data textures such as normal or roughness maps stay `NoColorSpace`.\n\n> Untick colorSpace = sRGB and the colours turn washed out and pale: the classic symptom of a missing colour space."
+  },
+  "keyApis": [
+    "THREE.CanvasTexture",
+    "THREE.DataTexture",
+    "texture.repeat",
+    "texture.offset",
+    "texture.wrapS",
+    "THREE.RepeatWrapping",
+    "texture.magFilter",
+    "texture.minFilter",
+    "texture.anisotropy",
+    "texture.colorSpace",
+    "renderer.capabilities.getMaxAnisotropy"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 repeatU 调到 3，再把 wrap 切到 Clamp，看看超出 0–1 的部分发生了什么。",
+      "切到 data 纹理，把 magFilter 改成 Nearest，观察 16×16 的像素块。",
+      "把 minFilter 设为 Nearest，转动视角看地板远处的闪烁（摩尔纹）。",
+      "在 makeUvGrid 里给 canvas 加一行你的名字，确认文字出现在每个物体上的位置。"
+    ],
+    "en": [
+      "Set repeatU to 3, then switch wrap to Clamp and see what happens outside 0–1.",
+      "Switch to the data texture and set magFilter to Nearest to see the 16×16 pixel blocks.",
+      "Set minFilter to Nearest and orbit the camera to see the far floor shimmer (moiré).",
+      "Write your name on the canvas in makeUvGrid and find where it lands on each object."
+    ]
+  }
+}

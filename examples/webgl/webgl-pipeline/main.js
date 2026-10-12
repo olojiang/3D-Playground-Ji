@@ -29,7 +29,7 @@ precision highp float;
 out vec4 outColor;
 void main() {
   // gl_FragCoord = this pixel's window position. A soft vertical sheen, no inputs needed.
-  float sheen = 0.75 + 0.25 * sin(gl_FragCoord.y * 0.012);
+  float sheen = 0.82 + 0.18 * sin(gl_FragCoord.y * 0.01 + gl_FragCoord.x * 0.004);
   outColor = vec4(vec3(${r}, ${g}, ${b}) * sheen, 1.0);
 }`;
 };

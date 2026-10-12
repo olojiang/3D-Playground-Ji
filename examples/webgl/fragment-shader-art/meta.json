@@ -1,0 +1,46 @@
+{
+  "slug": "fragment-shader-art",
+  "order": 6,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "fragment-shader",
+    "sdf",
+    "smoothstep",
+    "palette",
+    "shadertoy"
+  ],
+  "title": {
+    "zh": "片元着色器艺术：SDF 与调色板",
+    "en": "Fragment Shader Art"
+  },
+  "summary": {
+    "zh": "一个全屏三角形加一段片元着色器：UV 坐标、有向距离场、smoothstep 抗锯齿和余弦调色板，Shadertoy 风格。",
+    "en": "One full-screen triangle and one fragment shader: UVs, signed distance fields, smoothstep anti-aliasing and cosine palettes, Shadertoy style."
+  },
+  "concepts": {
+    "zh": "## 全屏三角形\n\n只要一个盖住整个屏幕的三角形（3 个顶点、无需缓冲区），每个像素就都会跑一次片元着色器。从此画面完全由一个“像素 → 颜色”的函数决定，这正是 Shadertoy 的玩法。\n\n## 坐标：uv 与 p\n\n- `uv = gl_FragCoord.xy / iResolution`：0 到 1，适合做渐变。\n- `p = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y`：中心为原点、y 从 -1 到 1，并按高度归一化，保证圆是圆的。\n\n## 有向距离场（SDF）\n\nSDF 返回点到形状边界的**有符号距离**：内部为负、边上为 0、外部为正。\n\n```glsl\nfloat sdCircle(vec2 p, float r) { return length(p) - r; }\nfloat sdBox(vec2 p, vec2 b, float r) {\n  vec2 q = abs(p) - b + r;\n  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;\n}\n```\n\n组合非常简单：并集取 `min(a, b)`，交集取 `max(a, b)`，差集取 `max(a, -b)`。平移就是把 `p` 减去位置，旋转就是乘一个 2×2 矩阵。打开“show distance field”，能直接看到距离的等值线。\n\n## smoothstep 抗锯齿\n\n用 `d < 0.0` 判断内外会得到锯齿边。改成在边界附近约一个像素宽的范围内做平滑过渡：\n\n```glsl\nfloat px = 2.0 / iResolution.y;          // 一个像素在 p 空间的大小\nfloat fill = 1.0 - smoothstep(-px, px, d);\n```\n\n把“smoothstep width”调大，硬边就会变成柔和的发光；调到 0，就能看到锯齿回来了。距离本身还能做光晕：`exp(-k * d)` 随距离衰减。\n\n## 余弦调色板\n\nInigo Quilez 的公式只用四个 vec3 参数就能生成无数配色：\n\n```glsl\nvec3 palette(float t) { return a + b * cos(6.2831853 * (c * t + d)); }\n```\n\n把形状编号、时间、到中心的距离组合成 t，颜色就会随位置和时间流动。面板里切换三套预设，看看只改 d 能带来多大变化。",
+    "en": "## The full-screen triangle\n\nDraw one triangle that covers the whole screen (3 vertices, no buffer) and the fragment shader runs once for every pixel. From then on the image is a single function from pixel to color, which is exactly how Shadertoy works.\n\n## Coordinates: uv and p\n\n- `uv = gl_FragCoord.xy / iResolution`: 0 to 1, handy for gradients.\n- `p = (2.0 * gl_FragCoord.xy - iResolution) / iResolution.y`: origin at the center, y from -1 to 1, normalized by height so circles stay round.\n\n## Signed distance fields (SDF)\n\nAn SDF returns the **signed distance** from a point to a shape's edge: negative inside, zero on the edge, positive outside.\n\n```glsl\nfloat sdCircle(vec2 p, float r) { return length(p) - r; }\nfloat sdBox(vec2 p, vec2 b, float r) {\n  vec2 q = abs(p) - b + r;\n  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;\n}\n```\n\nCombining shapes is simple: union is `min(a, b)`, intersection is `max(a, b)`, subtraction is `max(a, -b)`. Moving a shape means subtracting its position from `p`; rotating means multiplying by a 2×2 matrix. Turn on \"show distance field\" to see the distance contours directly.\n\n## smoothstep anti-aliasing\n\nTesting `d < 0.0` gives jagged edges. Instead, blend smoothly over about one pixel around the edge:\n\n```glsl\nfloat px = 2.0 / iResolution.y;          // one pixel in p units\nfloat fill = 1.0 - smoothstep(-px, px, d);\n```\n\nRaise \"smoothstep width\" and the hard edge turns into a soft glow; drop it to 0 and the jaggies return. The distance also makes halos: `exp(-k * d)` fades with distance.\n\n## Cosine palettes\n\nInigo Quilez's formula produces endless color schemes from four vec3 parameters:\n\n```glsl\nvec3 palette(float t) { return a + b * cos(6.2831853 * (c * t + d)); }\n```\n\nBuild t from the shape index, the time and the distance to the center, and the colors flow across space and time. Switch between the three presets in the panel and see how much changing d alone does."
+  },
+  "keyApis": [
+    "gl_FragCoord",
+    "gl_VertexID",
+    "smoothstep",
+    "length",
+    "min / max",
+    "mix",
+    "cos"
+  ],
+  "tryThis": {
+    "zh": [
+      "用 max(a, -b) 从中心方块里挖掉一个圆。",
+      "给 palette 写第四套预设，比如 d = vec3(0.3, 0.2, 0.2)。",
+      "让圆的数量随时间变化，或让方块随鼠标旋转。"
+    ],
+    "en": [
+      "Use max(a, -b) to cut a circle out of the central box.",
+      "Add a fourth palette preset, for example d = vec3(0.3, 0.2, 0.2).",
+      "Make the number of circles change over time, or rotate the box with the mouse."
+    ]
+  }
+}

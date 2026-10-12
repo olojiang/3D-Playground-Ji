@@ -1,0 +1,49 @@
+{
+  "slug": "materials",
+  "order": 3,
+  "difficulty": "beginner",
+  "requires": "webgl",
+  "tags": [
+    "materials",
+    "pbr",
+    "shading",
+    "lighting"
+  ],
+  "title": {
+    "zh": "材质大比拼",
+    "en": "Materials Side by Side"
+  },
+  "summary": {
+    "zh": "同一个形状、七种着色模型：Basic、Lambert、Phong、Standard、Physical、Toon、Normal 一字排开对比。",
+    "en": "One shape, seven shading models: Basic, Lambert, Phong, Standard, Physical, Toon and Normal in a row."
+  },
+  "concepts": {
+    "zh": "## 材质决定“怎么算颜色”\n\n几何体决定形状，**材质**决定每个像素的颜色怎么计算。three.js 会把材质编译成一对着色器（GLSL 程序）。不同材质的区别，本质上是光照公式不同、计算量不同。\n\n## 从便宜到昂贵\n\n1. **MeshBasicMaterial**：不受光照影响，只输出颜色或贴图。适合 UI、发光体、调试。\n2. **MeshLambertMaterial**：只有漫反射（哑光），没有高光。计算便宜，适合大面积的粗糙表面。\n3. **MeshPhongMaterial**：漫反射 + 镜面高光，用 `shininess` 控制高光的锐利程度。经典但不“物理”。\n4. **MeshStandardMaterial**：基于物理的渲染（PBR），用 `roughness`（粗糙度）和 `metalness`（金属度）两个直观参数描述表面，在任何光照下都更可信。\n5. **MeshPhysicalMaterial**：Standard 的扩展，额外支持清漆层 `clearcoat`、光泽 `sheen`、透射、虹彩等，效果最好也最贵。\n\n还有两个风格化/调试材质：\n\n- **MeshToonMaterial**：卡通渲染，用一张很小的 `gradientMap` 把连续的明暗切成几条色带。示例用 3 个像素的 `DataTexture`，并设置 `NearestFilter` 防止色带被插值模糊。\n- **MeshNormalMaterial**：把法线方向直接映射成 RGB，不需要灯光，常用来检查法线是否正确。\n\n## 为什么金属需要环境贴图\n\n金属几乎没有漫反射，它的颜色来自**反射周围环境**。如果场景里只有几盏点光源，把 metalness 拉到 1 会看到物体几乎全黑。示例给场景设置了 `scene.environment`（由 `RoomEnvironment` 生成），只有 Standard / Physical 会自动使用它，所以调高 metalness 时它们依然好看。\n\n## 修改材质的小规则\n\n大多数数值（颜色、roughness、shininess）改了立即生效；但会改变着色器代码的属性，比如 `flatShading`，需要设置 `material.needsUpdate = true` 让 three.js 重新编译。\n\n> 拖动 metalness 和 roughness，观察 Standard 与 Physical 的变化，而 Lambert、Phong 完全不受影响。",
+    "en": "## A material decides how colour is computed\n\nThe geometry is the shape; the **material** decides how each pixel's colour is computed. three.js compiles every material into a pair of shaders (GLSL programs). What separates materials is the lighting formula and how much work it costs.\n\n## From cheap to expensive\n\n1. **MeshBasicMaterial**: ignores lights and just outputs a colour or texture. Good for UI, glowing things and debugging.\n2. **MeshLambertMaterial**: diffuse (matte) only, no highlights. Cheap; fine for large rough surfaces.\n3. **MeshPhongMaterial**: diffuse plus a specular highlight whose sharpness is `shininess`. Classic, but not physically based.\n4. **MeshStandardMaterial**: physically based rendering (PBR). Two intuitive knobs, `roughness` and `metalness`, describe the surface and stay believable under any lighting.\n5. **MeshPhysicalMaterial**: an extension of Standard with a `clearcoat` layer, `sheen`, transmission, iridescence and more. The best looking and the most expensive.\n\nTwo more are stylised or diagnostic:\n\n- **MeshToonMaterial**: cel shading. A tiny `gradientMap` cuts smooth shading into a few bands. The demo uses a 3-pixel `DataTexture` with `NearestFilter` so the bands are not blurred together.\n- **MeshNormalMaterial**: maps the normal direction straight to RGB. It needs no lights and is the quickest way to check your normals.\n\n## Why metals need an environment\n\nMetals have almost no diffuse colour; what you see is the **reflected surroundings**. With only a few point lights, pushing metalness to 1 makes an object nearly black. The demo sets `scene.environment` (generated from `RoomEnvironment`). Only Standard and Physical use it automatically, which is why they stay good-looking at high metalness.\n\n## A small rule for edits\n\nMost values (colour, roughness, shininess) apply instantly. Properties that change the shader code itself, such as `flatShading`, need `material.needsUpdate = true` so three.js recompiles.\n\n> Drag metalness and roughness: Standard and Physical respond, while Lambert and Phong do not change at all."
+  },
+  "keyApis": [
+    "THREE.MeshBasicMaterial",
+    "THREE.MeshLambertMaterial",
+    "THREE.MeshPhongMaterial",
+    "THREE.MeshStandardMaterial",
+    "THREE.MeshPhysicalMaterial",
+    "THREE.MeshToonMaterial",
+    "THREE.MeshNormalMaterial",
+    "material.needsUpdate",
+    "scene.environment"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 envIntensity 调到 0，再把 metalness 拉到 1，看看 Standard 和 Physical 为什么变黑。",
+      "给 toonRamp 增加到 5 个灰度级，让卡通色带更细。",
+      "把 Physical 的 clearcoat 设为 1、roughness 设为 0.8，做出“磨砂底 + 亮面漆”的效果。",
+      "给 Phong 材质设置 emissive: \"#330022\"，观察自发光如何叠加在光照之上。"
+    ],
+    "en": [
+      "Set envIntensity to 0 and metalness to 1, and see why Standard and Physical go dark.",
+      "Give toonRamp five grey levels instead of three for finer cartoon bands.",
+      "On Physical, set clearcoat to 1 and roughness to 0.8 for a matte base under glossy lacquer.",
+      "Give the Phong material emissive: \"#330022\" and watch self-illumination add on top of lighting."
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "slug": "raycasting",
+  "order": 8,
+  "difficulty": "intermediate",
+  "requires": "webgl",
+  "tags": [
+    "raycasting",
+    "picking",
+    "interaction",
+    "ndc",
+    "pointer"
+  ],
+  "title": {
+    "zh": "射线拾取",
+    "en": "Raycasting & Picking"
+  },
+  "summary": {
+    "zh": "用 Raycaster 把鼠标位置变成“指针下是哪个 3D 物体”：悬停高亮、点击选中，并讲清楚 NDC 坐标。",
+    "en": "Use a Raycaster to answer \"which 3D object is under the pointer?\": hover highlight, click to select, and NDC coordinates explained."
+  },
+  "concepts": {
+    "zh": "## 问题：屏幕上的一个点对应 3D 里的什么？\n\n鼠标只给出 2D 像素坐标，而物体在 3D 空间里。解决办法是从相机出发，穿过鼠标所在的点，发射一条**射线**，看它先碰到谁。这就是 `THREE.Raycaster`。\n\n## 第一步：像素 → NDC\n\nGPU 用**标准化设备坐标**（NDC）描述屏幕：x、y 都在 -1 到 +1 之间，(0,0) 是画布中心，**+y 朝上**。而 CSS 像素的 y 是朝下的，所以要翻转：\n\n```js\nconst r = canvas.getBoundingClientRect();\npointer.x = ((e.clientX - r.left) / r.width) * 2 - 1;\npointer.y = -((e.clientY - r.top) / r.height) * 2 + 1;\n```\n\n一定要用 `getBoundingClientRect()`，因为画布不一定占满整个窗口。\n\n## 第二步：射线 + 求交\n\n`raycaster.setFromCamera(pointer, camera)` 根据相机的投影把 NDC 点“反投影”成一条世界空间中的射线。然后 `raycaster.intersectObjects(list)` 返回所有交点，**按距离从近到远排序**。每个结果包含：\n\n- `object`：被击中的物体\n- `point`：世界坐标中的交点\n- `distance`：到相机的距离\n- `face` / `faceIndex` 与 `normal`：被击中的三角形和它的法线（局部空间，需要用 `transformDirection(object.matrixWorld)` 转到世界空间）\n\n示例用白点标出交点，用黄色箭头画出世界空间法线。\n\n## 悬停与点击\n\n- **悬停**：每帧在渲染前做一次射线检测，比较结果和上一帧是否不同，再修改材质的 `emissive`。注意每个物体要有**自己的材质**，共享材质会让所有物体一起变色。\n- **点击**：`OrbitControls` 同样使用指针，拖拽旋转时不应误选。示例记录 `pointerdown` 的位置，只有在 `pointerup` 时移动不超过 4 像素才算一次点击。\n\n## 性能提示\n\n射线检测在 CPU 上逐个三角形测试，物体多、面数高时会变慢。只传入需要拾取的物体列表；对复杂模型可以用简化的不可见代理几何体，或者用 BVH 加速结构。\n\n> 移动鼠标观察状态栏：NDC 坐标、命中数量和最近物体的名称会实时更新。",
+    "en": "## The problem: what is under this pixel?\n\nThe mouse gives you a 2D pixel position, while objects live in 3D. The answer is to shoot a **ray** from the camera through the pointer and see what it hits first. That is `THREE.Raycaster`.\n\n## Step 1: pixels → NDC\n\nThe GPU describes the screen in **normalized device coordinates** (NDC): x and y both run from -1 to +1, (0,0) is the canvas centre, and **+y points up**. CSS pixels grow downward, so y is flipped:\n\n```js\nconst r = canvas.getBoundingClientRect();\npointer.x = ((e.clientX - r.left) / r.width) * 2 - 1;\npointer.y = -((e.clientY - r.top) / r.height) * 2 + 1;\n```\n\nAlways use `getBoundingClientRect()`: the canvas rarely fills the whole window.\n\n## Step 2: ray + intersection\n\n`raycaster.setFromCamera(pointer, camera)` un-projects the NDC point through the camera into a world-space ray. `raycaster.intersectObjects(list)` then returns every hit, **sorted nearest first**. Each hit has:\n\n- `object`: the mesh that was hit\n- `point`: the hit position in world space\n- `distance`: how far it is from the camera\n- `face` / `faceIndex` and `normal`: the triangle and its normal (in local space; convert with `transformDirection(object.matrixWorld)`)\n\nThe demo marks the hit point with a white dot and draws the world-space normal as a yellow arrow.\n\n## Hover and click\n\n- **Hover**: raycast once per frame before rendering, compare the result with last frame, and change the material's `emissive`. Each object needs **its own material**; a shared one would light up everything at once.\n- **Click**: `OrbitControls` also uses the pointer, and dragging to orbit should not select things. The demo records where `pointerdown` happened and counts a click only if `pointerup` is within 4 pixels.\n\n## Performance\n\nRaycasting tests triangles one by one on the CPU, so many objects or dense meshes get slow. Pass only the objects you want to pick; for complex models, test against a simplified invisible proxy or use a BVH acceleration structure.\n\n> Move the mouse and watch the status line: the NDC coordinates, hit count and nearest object update live."
+  },
+  "keyApis": [
+    "THREE.Raycaster",
+    "raycaster.setFromCamera",
+    "raycaster.intersectObjects",
+    "canvas.getBoundingClientRect",
+    "THREE.Vector2",
+    "Vector3.transformDirection",
+    "material.emissive",
+    "THREE.ArrowHelper"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 intersectObjects 改为也传入 floor，在地板上移动鼠标，看看命中点和法线。",
+      "点击时把选中的物体移动到命中点上方 1 个单位，做一个简单的“拾取并抬起”。",
+      "把 hits.length 打印出来：为什么有时一条射线会命中 2 个物体？",
+      "去掉 pointer.y 前面的负号，体会 NDC 的 y 轴方向。"
+    ],
+    "en": [
+      "Also pass floor to intersectObjects and move over the floor to see its hit point and normal.",
+      "On click, lift the selected object 1 unit above the hit point for a simple pick-and-raise.",
+      "Watch hits.length: why can one ray hit two objects?",
+      "Remove the minus sign in front of pointer.y and feel which way NDC y points."
+    ]
+  }
+}

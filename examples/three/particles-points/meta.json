@@ -1,0 +1,49 @@
+{
+  "slug": "particles-points",
+  "order": 12,
+  "difficulty": "intermediate",
+  "requires": "webgl",
+  "tags": [
+    "particles",
+    "points",
+    "blending",
+    "procedural",
+    "galaxy"
+  ],
+  "title": {
+    "zh": "粒子：Points 星系",
+    "en": "Particles: a Points Galaxy"
+  },
+  "summary": {
+    "zh": "用 Points、BufferGeometry 和带程序化贴图的 PointsMaterial，配合加法混合，生成一个会旋转的螺旋星系。",
+    "en": "Generate a rotating spiral galaxy with Points, BufferGeometry and a PointsMaterial using a procedural sprite and additive blending."
+  },
+  "concepts": {
+    "zh": "## Points：一个顶点就是一个粒子\n\n`THREE.Points` 和 `Mesh` 一样由几何体和材质组成，但它不画三角形：几何体里的每个顶点都会被画成一个**始终面向相机的正方形**。8 万个粒子只需要一个几何体、一次绘制调用。\n\n## 几何体：位置和颜色\n\n粒子的数据都放在 `BufferGeometry` 的属性里：\n\n- `position`：每个粒子的 xyz。\n- `color`：每个粒子的 rgb，材质要开启 `vertexColors: true` 才会读取。\n\n示例的星系生成规则很简单：随机半径（用 `Math.pow` 让更多粒子靠近中心）、平均分配到若干条旋臂、角度随半径增加而偏转（形成螺旋）、再加一点随机散布。颜色从中心的暖橙色渐变到外缘的冷蓝色。\n\n## PointsMaterial 的关键参数\n\n- `size` 与 `sizeAttenuation`：开启衰减时，远处的粒子显得更小，符合透视。背景星尘关闭了衰减，所以无论多远都是固定像素大小。\n- `map`：粒子的贴图。我们在 canvas 上画一个径向渐变，得到柔和的光点，而不是硬边方块。\n- `transparent: true` + `depthWrite: false`：透明粒子如果写入深度，会把后面粒子的柔和边缘“挡住”，出现黑框。\n- `blending: THREE.AdditiveBlending`：**加法混合**，重叠的颜色相加。粒子越密越亮，星系核心自然发光，而且不需要按距离排序。\n\n## 让它动起来\n\n最简单的方式是旋转整个 `Points` 对象，但真实星系是**差速旋转**：内圈转得快、外圈转得慢。示例为每个粒子记录半径和初始角度，每帧按 `角速度 ∝ 1 / √r` 重新计算位置，然后设置 `position.needsUpdate = true`。\n\n几万个粒子在 JS 里逐个更新是可行的；数量上到百万级时，应把运动挪到顶点着色器中（自定义 `ShaderMaterial`），只传一个时间 uniform。\n\n> 调整 branches、spin 和 randomness，几秒钟就能“设计”出完全不同的星系。",
+    "en": "## Points: one vertex, one particle\n\n`THREE.Points` pairs a geometry with a material just like `Mesh`, but it draws no triangles: every vertex in the geometry becomes a **square that always faces the camera**. Eighty thousand particles need just one geometry and one draw call.\n\n## Geometry: positions and colours\n\nAll particle data lives in `BufferGeometry` attributes:\n\n- `position`: each particle's xyz.\n- `color`: each particle's rgb, read only when the material has `vertexColors: true`.\n\nThe galaxy recipe is simple: a random radius (`Math.pow` pushes more particles toward the centre), an even split across a few arms, an angle that grows with radius (the spiral), and a bit of random scatter. Colour blends from warm orange at the core to cool blue at the rim.\n\n## The PointsMaterial settings that matter\n\n- `size` and `sizeAttenuation`: with attenuation on, distant particles look smaller, as perspective demands. The background dust turns it off, so it stays a fixed pixel size at any distance.\n- `map`: the particle's texture. A radial gradient drawn on a canvas gives a soft glow instead of a hard square.\n- `transparent: true` with `depthWrite: false`: transparent particles that write depth hide the soft edges of particles behind them, leaving dark boxes.\n- `blending: THREE.AdditiveBlending`: overlapping colours add up. Denser regions glow brighter, the core lights up naturally, and no depth sorting is needed.\n\n## Making it move\n\nThe easy way is to rotate the whole `Points` object, but real galaxies rotate **differentially**: the inside turns faster than the outside. The demo stores a radius and starting angle per particle and recomputes positions every frame with angular speed proportional to `1 / √r`, then sets `position.needsUpdate = true`.\n\nUpdating tens of thousands of particles in JS is fine; at millions, move the motion into a vertex shader (a custom `ShaderMaterial`) and pass only a time uniform.\n\n> Play with branches, spin and randomness: you can design a completely different galaxy in seconds."
+  },
+  "keyApis": [
+    "THREE.Points",
+    "THREE.PointsMaterial",
+    "THREE.BufferGeometry",
+    "THREE.BufferAttribute",
+    "THREE.CanvasTexture",
+    "THREE.AdditiveBlending",
+    "material.sizeAttenuation",
+    "material.vertexColors"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 blending 改为 NormalBlending，比较星系核心的亮度变化。",
+      "把 depthWrite 改回 true，靠近观察粒子边缘出现的黑框。",
+      "去掉 map，粒子会变成什么样子？",
+      "让角速度与半径无关（去掉 / √r），观察旋臂为什么不再变形。"
+    ],
+    "en": [
+      "Switch blending to NormalBlending and compare the brightness of the core.",
+      "Set depthWrite back to true and look closely for dark boxes around particles.",
+      "Remove the map: what do the particles look like now?",
+      "Make angular speed independent of radius (drop the / √r) and see why the arms stop deforming."
+    ]
+  }
+}

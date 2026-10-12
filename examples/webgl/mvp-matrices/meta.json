@@ -1,0 +1,46 @@
+{
+  "slug": "mvp-matrices",
+  "order": 4,
+  "difficulty": "intermediate",
+  "requires": "webgl2",
+  "tags": [
+    "matrices",
+    "mvp",
+    "depth-test",
+    "culling",
+    "3d"
+  ],
+  "title": {
+    "zh": "MVP 矩阵：亲手搭建 3D",
+    "en": "Model · View · Projection by Hand"
+  },
+  "summary": {
+    "zh": "不用任何数学库，手写 mat4 的透视、lookAt、旋转与平移，让一个立方体在 3D 空间里转起来。",
+    "en": "Write mat4 perspective, lookAt, rotation and translation yourself and spin a cube in 3D, no math library needed."
+  },
+  "concepts": {
+    "zh": "## 三个矩阵，三次换坐标系\n\n顶点在模型文件里的坐标是**局部坐标**。要画到屏幕上，要连乘三个 4×4 矩阵：\n\n```glsl\ngl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);\n```\n\n- **Model（模型矩阵）**：局部 → 世界。物体的缩放、旋转、位置。\n- **View（视图矩阵）**：世界 → 相机。它是“相机摆放”的逆：相机往右移，等价于整个世界往左移。`lookAt(eye, target, up)` 用三次叉乘构造出相机的正交基。\n- **Projection（投影矩阵）**：相机 → 裁剪空间。透视投影把视锥体压成一个立方体，并把深度放进 w，GPU 随后做“透视除法” x/w、y/w，于是远处的东西变小。\n\n## 列主序与乘法顺序\n\nGLSL 的矩阵是**列主序**：数组里先存第一列，平移量位于第 12、13、14 个元素。矩阵乘法不满足交换律，`M = 公转 × 平移 × 自转 × 缩放` 读起来要从右往左：先缩放，再自转，再推出去，最后绕原点公转。本例的小立方体“月亮”就是这样组合的，换个顺序试试，结果完全不同。\n\n## 深度测试\n\n不开深度测试时，后画的三角形总是盖住先画的，不管谁离相机更近。`gl.enable(gl.DEPTH_TEST)` 让 GPU 为每个像素记录深度，只保留最近的片元。每帧记得 `gl.clear(... | gl.DEPTH_BUFFER_BIT)`。\n\n## 背面剔除\n\n封闭物体的背面永远看不见，`gl.enable(gl.CULL_FACE)` 直接丢掉它们，省下一半片元。判断正反面靠**顶点顺序**：从外面看是逆时针（CCW）的三角形为正面。关掉剔除和深度测试，片元着色器里用 `gl_FrontFacing` 把背面涂成品红色，你会看到它们“透”出来。\n\n```glsl\nif (!gl_FrontFacing) c = vec3(0.9, 0.1, 0.35) * 0.6;\n```\n\n## 法线也要变换\n\n光照需要世界空间的法线。只有旋转和统一缩放时，可以直接用 `mat3(uModel)`；有非均匀缩放时要用法线矩阵（模型矩阵逆的转置）。",
+    "en": "## Three matrices, three changes of space\n\nA vertex starts in **local space**, the coordinates in the model itself. To reach the screen it is multiplied by three 4×4 matrices:\n\n```glsl\ngl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);\n```\n\n- **Model**: local → world. The object's scale, rotation and position.\n- **View**: world → camera. It is the inverse of placing the camera: moving the camera right is the same as moving the world left. `lookAt(eye, target, up)` builds the camera's orthonormal basis from cross products.\n- **Projection**: camera → clip space. A perspective projection squeezes the view frustum into a cube and stores depth in w; the GPU then performs the perspective divide x/w, y/w, so distant things get smaller.\n\n## Column-major order and multiplication order\n\nGLSL matrices are **column-major**: the array stores the first column first, and the translation sits in elements 12, 13 and 14. Matrix multiplication is not commutative, and `M = orbit × translate × spin × scale` reads right to left: scale first, then spin, then push out, then orbit around the origin. That is how the little moon cube is built. Change the order and the result is completely different.\n\n## Depth testing\n\nWithout a depth test, whatever is drawn last covers what came before, no matter which is closer. `gl.enable(gl.DEPTH_TEST)` makes the GPU store a depth per pixel and keep only the nearest fragment. Remember `gl.clear(... | gl.DEPTH_BUFFER_BIT)` every frame.\n\n## Back-face culling\n\nThe back faces of a closed object are never visible, and `gl.enable(gl.CULL_FACE)` throws them away, saving half the fragments. Front and back are decided by **winding order**: a triangle that is counter-clockwise when seen from outside is a front face. Turn off culling and depth testing: the fragment shader paints back faces magenta with `gl_FrontFacing`, and you can see them show through.\n\n```glsl\nif (!gl_FrontFacing) c = vec3(0.9, 0.1, 0.35) * 0.6;\n```\n\n## Normals need transforming too\n\nLighting needs world-space normals. With only rotation and uniform scale, `mat3(uModel)` is enough; with non-uniform scale you need the normal matrix, the transpose of the inverse model matrix."
+  },
+  "keyApis": [
+    "uniformMatrix4fv",
+    "perspective",
+    "lookAt",
+    "gl.enable(gl.DEPTH_TEST)",
+    "gl.enable(gl.CULL_FACE)",
+    "gl.DEPTH_BUFFER_BIT",
+    "gl_FrontFacing"
+  ],
+  "tryThis": {
+    "zh": [
+      "关掉 DEPTH_TEST，保持 CULL_FACE，看小立方体何时“穿”到大立方体前面。",
+      "把月亮矩阵里的平移和公转对调顺序，观察运动变化。",
+      "把 fov 拉到 110 并缩短相机距离，感受强烈的透视畸变。"
+    ],
+    "en": [
+      "Turn off DEPTH_TEST but keep CULL_FACE, and watch when the moon wrongly pops in front of the big cube.",
+      "Swap the translation and the orbit in the moon's matrix and see how the motion changes.",
+      "Push fov to 110 and bring the camera closer to feel strong perspective distortion."
+    ]
+  }
+}

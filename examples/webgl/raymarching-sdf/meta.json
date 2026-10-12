@@ -1,0 +1,47 @@
+{
+  "slug": "raymarching-sdf",
+  "order": 8,
+  "difficulty": "advanced",
+  "requires": "webgl2",
+  "tags": [
+    "raymarching",
+    "sdf",
+    "soft-shadows",
+    "ambient-occlusion",
+    "3d"
+  ],
+  "title": {
+    "zh": "光线步进：用距离场画 3D",
+    "en": "Raymarching Signed Distance Fields"
+  },
+  "summary": {
+    "zh": "在一个片元着色器里完成整个 3D 场景：球体追踪、SDF 图元、平滑并集、梯度法线、软阴影与环境光遮蔽。",
+    "en": "A whole 3D scene in one fragment shader: sphere tracing, SDF primitives, smooth union, gradient normals, soft shadows and ambient occlusion."
+  },
+  "concepts": {
+    "zh": "## 每个像素发出一条光线\n\n光栅化是“三角形找像素”，光线步进反过来，是“像素找表面”。每个像素根据相机位置 `ro` 和方向 `rd` 发出一条光线，沿着它寻找与场景的交点。场景不是网格，而是一个 3D 的有向距离函数 `map(p)`：返回点 p 到最近表面的距离。\n\n## 球体追踪\n\n距离场有个美妙的性质：以 p 为球心、`map(p)` 为半径的球内一定没有任何物体。所以每一步都可以安全地前进这么远：\n\n```glsl\nfor (int i = 0; i < uSteps; i++) {\n  float d = map(ro + rd * t);\n  if (d < 0.001 * t) { hit = true; break; }\n  t += d;\n}\n```\n\n空旷处步子大，靠近表面时步子小，几十步就能精确命中。把“max march steps”调低，物体边缘会先出问题：那里光线擦边而过，需要更多步。\n\n## 图元与平滑并集\n\n球、圆环、圆角盒都有简单的 SDF。并集用 `min`，但 `min` 会留下尖锐的折痕。**平滑最小值** `smin` 在距离相差小于 k 时把两者混合，形状就像液体一样融合：\n\n```glsl\nfloat smin(float a, float b, float k) {\n  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);\n  return mix(b, a, h) - k * h * (1.0 - h);\n}\n```\n\n## 法线：距离场的梯度\n\n表面的法线就是距离场增长最快的方向，也就是梯度。在命中点附近取几个微小偏移，比较 `map` 的差值即可得到它（本例用四面体四次采样的技巧）。\n\n## 软阴影与 AO\n\n- **软阴影**：从命中点朝光源再步进一次。如果途中某处离物体很近（h 小）且离起点很近（t 小），就处于半影里，`res = min(res, k * h / t)`。k 越大，阴影边缘越硬。\n- **环境光遮蔽（AO）**：沿法线方向采样几个距离。如果实际距离比预期小，说明附近有遮挡，就让它变暗。缝隙和接触处因此自然变暗。\n\n最后加上 Phong 高光、菲涅尔边缘光和距离雾，再做 gamma 校正，一个“没有三角形”的 3D 场景就完成了。\n\n> 光线步进每个像素要做上百次 map 调用。实时项目里常常降低分辨率渲染，这里由“render scale”控制。拖动画布可以旋转视角。",
+    "en": "## One ray per pixel\n\nRasterization asks \"which pixels does this triangle cover?\"; raymarching asks the reverse, \"which surface does this pixel see?\". Each pixel shoots a ray from the camera position `ro` in direction `rd` and searches along it for the scene. The scene is not a mesh but a 3D signed distance function `map(p)`, which returns the distance from p to the nearest surface.\n\n## Sphere tracing\n\nDistance fields have a lovely property: a sphere centered at p with radius `map(p)` contains no geometry. So each step can safely advance that far:\n\n```glsl\nfor (int i = 0; i < uSteps; i++) {\n  float d = map(ro + rd * t);\n  if (d < 0.001 * t) { hit = true; break; }\n  t += d;\n}\n```\n\nSteps are long in empty space and short near surfaces, so a few dozen steps hit precisely. Lower \"max march steps\" and silhouettes break first: rays grazing an edge need the most steps.\n\n## Primitives and smooth union\n\nSpheres, tori and rounded boxes all have simple SDFs. Union is `min`, but `min` leaves a sharp crease. A **smooth minimum**, `smin`, blends the two when their distances are within k of each other, and the shapes melt together like liquid:\n\n```glsl\nfloat smin(float a, float b, float k) {\n  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);\n  return mix(b, a, h) - k * h * (1.0 - h);\n}\n```\n\n## Normals: the gradient of the field\n\nA surface normal is the direction in which the distance grows fastest, which is the gradient. Sample `map` at a few tiny offsets around the hit point and compare the values (this example uses the four-sample tetrahedron trick).\n\n## Soft shadows and AO\n\n- **Soft shadows**: march again from the hit point toward the light. If the ray passes close to geometry (small h) near its start (small t), the point is in penumbra: `res = min(res, k * h / t)`. A larger k gives harder shadow edges.\n- **Ambient occlusion**: sample a few distances along the normal. If the field is smaller than expected, something nearby is blocking light, so darken. Creases and contact points darken naturally.\n\nAdd a Phong highlight, a Fresnel rim, distance fog and gamma correction, and you have a 3D scene without a single triangle.\n\n> Raymarching makes a hundred or more map calls per pixel. Real-time work often renders at reduced resolution, controlled here by \"render scale\". Drag the canvas to orbit the camera."
+  },
+  "keyApis": [
+    "sphere tracing",
+    "sdSphere / sdTorus / sdBox",
+    "smin",
+    "calcNormal",
+    "softShadow",
+    "ambientOcclusion",
+    "reflect",
+    "normalize"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 smooth union k 调到 0.001，再调到 0.8，观察融合程度。",
+      "在 map 里加一个 sdSphere，并用 max(a, -b) 从圆环上挖一块。",
+      "用 mod(p.xz, 3.0) - 1.5 重复空间，变出无限多个物体。"
+    ],
+    "en": [
+      "Set smooth union k to 0.001, then to 0.8, and compare how much the shapes melt.",
+      "Add another sdSphere to map and use max(a, -b) to carve a piece out of the torus.",
+      "Repeat space with mod(p.xz, 3.0) - 1.5 to get infinitely many objects."
+    ]
+  }
+}

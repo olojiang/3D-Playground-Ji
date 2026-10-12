@@ -1,0 +1,45 @@
+{
+  "slug": "uniforms",
+  "order": 3,
+  "difficulty": "beginner",
+  "requires": "webgl2",
+  "tags": [
+    "uniforms",
+    "animation",
+    "mouse",
+    "gl-vertexid"
+  ],
+  "title": {
+    "zh": "Uniform：让着色器动起来",
+    "en": "Uniforms: Driving Shaders from JS"
+  },
+  "summary": {
+    "zh": "用 u_time、u_resolution、u_mouse 这三个经典 uniform，从 JavaScript 驱动一朵会呼吸的花。",
+    "en": "Use the classic trio u_time, u_resolution and u_mouse to animate a breathing flower from JavaScript."
+  },
+  "concepts": {
+    "zh": "## 什么是 uniform\n\nattribute 每个顶点不同，uniform 则在**一次绘制调用内对所有顶点和片元都相同**。它是 CPU 给 GPU 传参数的主要方式：时间、画布尺寸、鼠标位置、颜色、矩阵……\n\n```glsl\nuniform float u_time;        // 秒\nuniform vec2  u_resolution;  // 画布像素尺寸\nuniform vec2  u_mouse;       // 鼠标像素坐标（左下角为原点）\n```\n\n## 设置 uniform 的三步\n\n1. 链接后用 `gl.getUniformLocation(program, \"u_time\")` 查到位置。只查一次，把结果缓存起来。\n2. 绘制前先 `gl.useProgram(program)`：uniform 属于**当前**程序。\n3. 用类型匹配的函数赋值：`uniform1f`、`uniform2f`、`uniform3fv`、`uniform1i`、`uniformMatrix4fv`……类型写错不会报错，只会静默失败。\n\n本例用 `gl.getActiveUniform` 遍历程序里所有活跃的 uniform，自动建好查找表。注意：着色器里声明了但没用到的 uniform 会被编译器优化掉，查到的位置是 `null`。\n\n## 三个经典 uniform\n\n- **u_time** 让一切动起来。花瓣半径是 `sin(petals * angle + u_time * 2.0)` 的函数，每帧只改一个数字，GPU 就重新算出所有顶点。\n- **u_resolution** 用来修正宽高比。裁剪空间永远是 -1 到 1 的正方形，把 x 乘以 `高 / 宽`，圆才不会被拉扁。\n- **u_mouse** 来自 `pointermove` 事件。DOM 的 y 轴向下，GL 的 y 轴向上，记得翻转，并乘上设备像素比。\n\n## 不用缓冲区也能画\n\n花朵的顶点完全由 `gl_VertexID`（当前是第几个顶点）计算出来：每 3 个顶点一个三角形，第 0 个在中心，另外两个在圆周上。WebGL2 只要求绑定一个 VAO，不需要任何 attribute。\n\n```glsl\nint tri = gl_VertexID / 3, corner = gl_VertexID % 3;\n```\n\n> 把鼠标移到画布上，背景的光晕会跟着你：这就是 u_mouse 在片元着色器里的作用。",
+    "en": "## What a uniform is\n\nAttributes differ per vertex; a uniform is **the same for every vertex and fragment within one draw call**. It is the main way the CPU hands parameters to the GPU: time, canvas size, mouse position, colors, matrices…\n\n```glsl\nuniform float u_time;        // seconds\nuniform vec2  u_resolution;  // canvas size in pixels\nuniform vec2  u_mouse;       // mouse in pixels, origin bottom-left\n```\n\n## Setting a uniform in three steps\n\n1. After linking, look up its location with `gl.getUniformLocation(program, \"u_time\")`. Do it once and cache the result.\n2. Call `gl.useProgram(program)` before setting it: uniforms belong to the **current** program.\n3. Assign with the function that matches its type: `uniform1f`, `uniform2f`, `uniform3fv`, `uniform1i`, `uniformMatrix4fv`… A mismatched type does not throw; it silently fails.\n\nThis example walks every active uniform with `gl.getActiveUniform` to build the lookup table automatically. Note that a uniform you declare but never use is optimized away by the compiler, and its location comes back `null`.\n\n## The classic three\n\n- **u_time** makes things move. The petal radius is a function of `sin(petals * angle + u_time * 2.0)`; changing one number per frame makes the GPU recompute every vertex.\n- **u_resolution** fixes the aspect ratio. Clip space is always a -1 to 1 square, so multiply x by `height / width` or circles get squashed.\n- **u_mouse** comes from `pointermove`. The DOM's y axis points down and GL's points up, so flip it, and scale by the device pixel ratio.\n\n## Drawing without buffers\n\nThe flower's vertices are computed entirely from `gl_VertexID`, the index of the current vertex: every 3 vertices form a triangle, vertex 0 sits at the center and the other two lie on the rim. WebGL2 only needs a VAO bound, with no attributes at all.\n\n```glsl\nint tri = gl_VertexID / 3, corner = gl_VertexID % 3;\n```\n\n> Move the mouse over the canvas and the background glow follows you: that is u_mouse at work in the fragment shader."
+  },
+  "keyApis": [
+    "gl.getUniformLocation",
+    "gl.getActiveUniform",
+    "gl.uniform1f",
+    "gl.uniform2f",
+    "gl.uniform3fv",
+    "gl.uniform1i",
+    "gl_VertexID"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 u_petals 设为 0，花会变成什么？再试试 12。",
+      "新增一个 uniform u_twist，让花瓣角度随半径扭转。",
+      "删掉 p.x 乘以宽高比的那一行，然后改变窗口大小。"
+    ],
+    "en": [
+      "Set u_petals to 0: what does the flower become? Then try 12.",
+      "Add a uniform u_twist that rotates the petal angle with the radius.",
+      "Remove the line that multiplies p.x by the aspect ratio, then resize the window."
+    ]
+  }
+}
