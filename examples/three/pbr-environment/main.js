@@ -38,7 +38,8 @@ for (let i = 0; i < 14; i++) {
 }
 scene.add(backdrop);
 
-const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshStandardMaterial({ color: "#0d0d14", roughness: 0.55, metalness: 0, envMapIntensity: 0.2 }));
+// Lambert ignores scene.environment, which keeps the stage floor dark.
+const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshLambertMaterial({ color: "#15151f" }));
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
