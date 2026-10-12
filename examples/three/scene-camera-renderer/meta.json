@@ -1,0 +1,18 @@
+{
+  "slug": "scene-camera-renderer",
+  "order": 1,
+  "difficulty": "beginner",
+  "requires": "webgl",
+  "tags": ["scene", "camera", "renderer", "render-loop"],
+  "title": { "zh": "场景 · 相机 · 渲染器", "en": "Scene · Camera · Renderer" },
+  "summary": { "zh": "每个 three.js 程序都离不开的三件套，以及最小的渲染循环。", "en": "The trio behind every three.js program, plus the smallest possible render loop." },
+  "concepts": {
+    "zh": "## 三件套\n\nthree.js 把一帧画面拆成三个对象：\n\n- **Scene（场景）**：一棵对象树，所有要画的东西（网格、灯光、相机）都挂在上面。\n- **Camera（相机）**：决定从哪里、以什么视角看场景。最常用的是 `PerspectiveCamera(fov, aspect, near, far)`。\n- **Renderer（渲染器）**：把场景通过相机投影到 `<canvas>` 上，底层调用 WebGL（或 WebGPU）。\n\n## 网格 = 几何体 + 材质\n\n`Mesh` 由 **Geometry**（形状，顶点数据）和 **Material**（外观，最终会编译成着色器）组成。`MeshStandardMaterial` 是基于物理的材质（PBR），需要灯光才能看见。\n\n## 渲染循环\n\n浏览器每帧调用一次 `renderer.setAnimationLoop` 里的回调：先更新物体状态，再 `renderer.render(scene, camera)`。用 `Timer.getDelta()` 得到帧间隔，让动画速度与帧率无关。\n\n## 尺寸与像素比\n\n画布尺寸变化时要同时更新 `renderer.setSize` 和 `camera.aspect`，否则画面会被拉伸。`setPixelRatio` 控制高分屏清晰度，通常限制在 2 以内以节省性能。\n\n> 试着拖动、滚轮缩放画面：这是 `OrbitControls` 在改变相机位置。",
+    "en": "## The trio\n\nthree.js splits a frame into three objects:\n\n- **Scene**: a tree of objects. Everything you draw (meshes, lights, even cameras) hangs from it.\n- **Camera**: where and how you look at the scene. The workhorse is `PerspectiveCamera(fov, aspect, near, far)`.\n- **Renderer**: projects the scene through the camera onto a `<canvas>`, using WebGL (or WebGPU) underneath.\n\n## Mesh = Geometry + Material\n\nA `Mesh` pairs a **Geometry** (the shape, as vertex data) with a **Material** (the look, which three.js compiles into shaders). `MeshStandardMaterial` is physically based (PBR) and needs lights to be visible.\n\n## The render loop\n\nThe browser calls the callback passed to `renderer.setAnimationLoop` once per frame: update your objects, then call `renderer.render(scene, camera)`. Use `Timer.getDelta()` so motion speed does not depend on frame rate.\n\n## Size and pixel ratio\n\nWhen the canvas resizes, update both `renderer.setSize` and `camera.aspect`, or the image stretches. `setPixelRatio` controls sharpness on high-DPI screens; capping it at 2 keeps the GPU cost reasonable.\n\n> Drag and scroll on the canvas: that is `OrbitControls` moving the camera."
+  },
+  "keyApis": ["THREE.WebGLRenderer", "THREE.Scene", "THREE.PerspectiveCamera", "THREE.Mesh", "THREE.BoxGeometry", "THREE.MeshStandardMaterial", "THREE.Timer", "OrbitControls"],
+  "tryThis": {
+    "zh": ["把 fov 调到 100，观察透视畸变。", "把材质换成 MeshNormalMaterial，不需要灯光也能看见。", "删掉 resize 函数里的 camera.updateProjectionMatrix()，再改变窗口大小看看会发生什么。"],
+    "en": ["Push fov to 100 and watch the perspective distortion.", "Swap the material for MeshNormalMaterial: it needs no lights.", "Remove camera.updateProjectionMatrix() from resize, then resize the window and see what breaks."]
+  }
+}

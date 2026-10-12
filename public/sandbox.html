@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>3D Playground sandbox</title>
+<link rel="icon" href="data:," />
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/build/three.module.js",
+    "three/webgpu": "/vendor/three/build/three.webgpu.js",
+    "three/tsl": "/vendor/three/build/three.tsl.js",
+    "three/addons/": "/vendor/three/addons/"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #07070a; color: #e7e7ea;
+    font: 12px/1.4 ui-sans-serif, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  canvas#c { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+  #out { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); pointer-events: none;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+  .lil-gui.root { position: absolute; top: 10px; right: 10px; --background-color: rgba(18,18,24,.82); --widget-color: rgba(255,255,255,.08);
+    --hover-color: rgba(255,255,255,.14); --focus-color: rgba(255,255,255,.2); --font-family: ui-sans-serif, -apple-system, sans-serif;
+    border-radius: 10px; overflow: hidden; backdrop-filter: blur(10px); box-shadow: 0 10px 30px -10px rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0"></canvas>
+<div id="out"></div>
+<script>
+// Sandbox runtime: runs one user program per page load. The host reloads the iframe to stop a program.
+(() => {
+  const post = (msg) => parent !== window && parent.postMessage({ source: "pg-sandbox", ...msg }, "*");
+  const fmt = (v) => {
+    if (v instanceof Error) return v.stack || String(v);
+    if (typeof v === "string") return v;
+    try { return JSON.stringify(v, (k, x) => (typeof x === "bigint" ? x.toString() : x), 0)?.slice(0, 2000) ?? String(v); } catch { return String(v); }
+  };
+  for (const level of ["log", "info", "warn", "error"]) {
+    const orig = console[level].bind(console);
+    console[level] = (...args) => { orig(...args); post({ type: "console", level, text: args.map(fmt).join(" ") }); };
+  }
+  addEventListener("error", (e) => post({ type: "error", text: e.error?.stack || e.message || String(e) }));
+  addEventListener("unhandledrejection", (e) => post({ type: "error", text: e.reason?.stack || String(e.reason) }));
+
+  // rAF wrapper: pause/resume + FPS reporting work for every program without its cooperation.
+  const raf = window.requestAnimationFrame.bind(window);
+  let paused = false, queued = [], frames = 0, last = performance.now();
+  window.requestAnimationFrame = (cb) => {
+    if (paused) { queued.push(cb); return -1; }
+    return raf((t) => { frames++; cb(t); });
+  };
+  const tick = () => {
+    const now = performance.now();
+    if (now - last >= 1000) { post({ type: "fps", fps: paused ? 0 : Math.round((frames * 1000) / (now - last)) }); frames = 0; last = now; }
+    raf(tick);
+  };
+  raf(tick);
+
+  window.PG = {
+    canvas: document.getElementById("c"),
+    /** Show a short status line on top of the canvas (e.g. "WebGPU not available"). */
+    status(text) { document.getElementById("out").textContent = text; },
+  };
+
+  async function run(code) {
+    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+    try { await import(url); post({ type: "started" }); }
+    catch (e) { post({ type: "error", text: e?.stack || String(e) }); }
+  }
+
+  addEventListener("message", (e) => {
+    const d = e.data || {};
+    if (d.target !== "pg-sandbox") return;
+    if (d.type === "run") run(d.code);
+    if (d.type === "pause") { paused = true; }
+    if (d.type === "resume") { paused = false; const q = queued; queued = []; q.forEach((cb) => raf((t) => cb(t))); }
+    if (d.type === "screenshot") {
+      const c = document.querySelector("canvas");
+      try { post({ type: "screenshot", dataUrl: c.toDataURL("image/png") }); } catch (err) { post({ type: "error", text: String(err) }); }
+    }
+  });
+
+  const src = new URLSearchParams(location.search).get("src");
+  if (src) fetch(src).then((r) => r.text()).then(run);
+  else post({ type: "ready" });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules
+.next
+.env*
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+test-results
+public/vendor
+src/generated
+work-shots
