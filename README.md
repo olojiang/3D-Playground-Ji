@@ -6,7 +6,7 @@
 
 在浏览器里边读、边改、边看：Three.js、WebGL 着色器、GPU / WebGPU 计算，36 节可实时运行的中英双语课程。
 
-[**▶ 立即在线体验 / Try it live**](https://3d-playground-ji.vercel.app) &nbsp;·&nbsp; [中文](#中文) &nbsp;·&nbsp; [English](#english)
+[**▶ 立即在线体验 / Try it live**](https://3d.827722.xyz) &nbsp;·&nbsp; [中文](#中文) &nbsp;·&nbsp; [English](#english)
 
 ![Next.js 15](https://img.shields.io/badge/Next.js-15-000?logo=nextdotjs)
 ![React 19](https://img.shields.io/badge/React-19-149eca?logo=react)
@@ -15,6 +15,7 @@
 ![WebGPU](https://img.shields.io/badge/WebGPU-ready-6d28d9)
 ![Tests](https://img.shields.io/badge/tests-327%20passing-22c55e)
 ![i18n](https://img.shields.io/badge/i18n-中文%20%7C%20English-f59e0b)
+[![License: MIT](https://img.shields.io/badge/license-MIT-0ea5e9)](LICENSE)
 
 ![首页 Home](docs/images/home.png)
 
@@ -219,6 +220,15 @@ npm run lint         # ESLint + tsc --noEmit
 | `public/sandbox.html` | 课程运行的 iframe 沙箱 |
 | `scripts/` | vendor、课程打包、开发服务器、headless 课程检查 |
 
+### 参与贡献 · Contributing
+
+欢迎 PR！开发环境、TDD 规则、课程编写与 PR 检查清单见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
+PRs welcome! Setup, the TDD rule, lesson authoring and the PR checklist are in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
+### 许可 · License
+
+[MIT](LICENSE) © 2026 Wei Ji
+
 ### 新增一节课 · Add a lesson
 
 1. 在 `examples/<three|webgl|gpu>/` 下新建文件夹，写 `meta.json`（中英标题、摘要、文章、API、练习）和 `main.js`。
@@ -229,7 +239,7 @@ npm run lint         # ESLint + tsc --noEmit
 
 <div align="center">
 
-**[打开 3D Playground →](https://3d-playground-ji.vercel.app)**
+**[打开 3D Playground →](https://3d.827722.xyz)**
 
 如果它帮你看懂了 GPU，欢迎点一个 ⭐ · If it helped the GPU click for you, a ⭐ is appreciated.
 

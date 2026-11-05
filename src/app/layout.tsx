@@ -1,19 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/playfair-display";
 import "./globals.css";
 import { themeCss, THEME_BOOT_SCRIPT } from "@/core/themes";
 import { translate } from "@/core/i18n";
-import { isLang } from "@/core/userdata";
+import { SITE_URL } from "@/core/seo";
+import { requestLang } from "@/server/lang";
 import { summaries } from "@/server/catalog";
 import { Providers } from "@/components/Providers";
+import { Monitoring } from "@/components/Monitoring";
 
-async function currentLang() {
-  const c = (await cookies()).get("tp-lang")?.value;
-  return isLang(c) ? c : "zh";
-}
+const currentLang = requestLang;
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await currentLang();
@@ -21,6 +19,10 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: `${translate(lang, "app.name")} · ${translate(lang, "app.tagline")}`, template: `%s · ${translate(lang, "app.name")}` },
     description: translate(lang, "app.description"),
     applicationName: "3D Playground",
+    metadataBase: new URL(SITE_URL),
+    openGraph: { siteName: "3D Playground", type: "website", locale: lang === "zh" ? "zh_CN" : "en_US", title: translate(lang, "app.name"), description: translate(lang, "app.description") },
+    twitter: { card: "summary_large_image" },
+    formatDetection: { telephone: false, email: false, address: false },
   };
 }
 export const viewport: Viewport = { themeColor: "#08080b", width: "device-width", initialScale: 1 };
@@ -35,6 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <Providers initialLang={lang} catalog={summaries()}>{children}</Providers>
+        <Monitoring />
       </body>
     </html>
   );

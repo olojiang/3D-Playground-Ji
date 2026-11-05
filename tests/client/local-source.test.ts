@@ -67,3 +67,24 @@ describe("RemoteSource", () => {
     await expect(r.getSnippet("boom")).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe("sharing from the client", () => {
+  it("guests cannot share (needs an account)", async () => {
+    const s = new LocalSource(new Mem());
+    const a = await s.createSnippet({ title: "A", code: "x", exampleId: null });
+    await expect(s.setShared(a.id, true)).rejects.toMatchObject({ status: 401 });
+  });
+  it("RemoteSource PUTs /api/snippets/:id/share and returns the share id", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const f = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      const on = JSON.parse(String(init.body)).on;
+      return new Response(JSON.stringify({ shareId: on ? "A".repeat(22) : null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = new RemoteSource(f);
+    expect(await r.setShared("abc123", true)).toBe("A".repeat(22));
+    expect(await r.setShared("abc123", false)).toBeNull();
+    expect(calls[0].url).toBe("/api/snippets/abc123/share");
+    expect(calls[0].init.method).toBe("PUT");
+  });
+});

@@ -6,6 +6,8 @@ import { z } from "zod";
 import * as repo from "./repo";
 import { hashPassword, verifyPassword, signSession, sessionCookie, clearCookie, userIdFromRequest } from "./auth";
 import { sanitizeSettings, snippetInput, EXAMPLE_ID, newId, type Snippet } from "@/core/userdata";
+import { newShareId, SHARE_ID } from "@/core/share";
+import { sanitizeReport, RateLimiter, MAX_BODY } from "@/core/telemetry";
 
 export const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });
@@ -145,7 +147,7 @@ export const createSnippet = authed(async (req, uid) => {
   if (!r.success) return fail("invalid");
   if ((await repo.countSnippets(uid)) >= repo.MAX_SNIPPETS) return fail("limit", 409);
   const now = Date.now();
-  const s: Snippet = { id: newId(), title: r.data.title, exampleId: r.data.exampleId ?? null, code: r.data.code, createdAt: now, updatedAt: now };
+  const s: Snippet = { id: newId(), title: r.data.title, exampleId: r.data.exampleId ?? null, code: r.data.code, createdAt: now, updatedAt: now, shareId: null };
   await repo.createSnippet(uid, s);
   return json({ snippet: s }, 201);
 });
@@ -165,6 +167,58 @@ export const deleteSnippet = authed(async (_req, uid, p) => {
   if (!SNIP_ID.test(p.id ?? "")) return fail("not_found", 404);
   return (await repo.deleteSnippet(uid, p.id)) ? json({ ok: true }) : fail("not_found", 404);
 });
+
+/* ---------- sharing ---------- */
+const shareSchema = z.object({ on: z.boolean() });
+/** Owner-only: make a snippet public (stable link while shared) or private (link revoked). */
+export const shareSnippet = authed(async (req, uid, p) => {
+  if (!SNIP_ID.test(p.id ?? "")) return fail("not_found", 404);
+  const r = shareSchema.safeParse(await body(req));
+  if (!r.success) return fail("invalid");
+  const shareId = await repo.setSnippetShare(uid, p.id, r.data.on, newShareId);
+  return shareId === undefined ? fail("not_found", 404) : json({ shareId });
+});
+/** Public, read-only. Anyone with the link; nothing about the owner is returned. */
+export async function getSharedSnippet(_req: Request, p: Record<string, string> = {}) {
+  if (!SHARE_ID.test(p.id ?? "")) return fail("not_found", 404);
+  try {
+    const s = await repo.getSharedSnippet(p.id);
+    return s ? json({ snippet: s }) : fail("not_found", 404);
+  } catch (e) {
+    console.error(e);
+    return fail("server_error", 500);
+  }
+}
+
+/* ---------- client error telemetry ---------- */
+export const TELEMETRY_LIMIT = 10; // per client per minute
+const telemetryPerClient = new RateLimiter(TELEMETRY_LIMIT, 60_000);
+const telemetryGlobal = new RateLimiter(600, 60_000); // per server instance, protects the DB
+export const resetTelemetryLimits = () => { telemetryPerClient.reset(); telemetryGlobal.reset(); };
+
+/** Accepts a scrubbed error report. The IP is only used as an in-memory rate-limit key, never stored. */
+export async function postTelemetry(req: Request) {
+  const len = Number(req.headers.get("content-length") || 0);
+  if (len > MAX_BODY) return fail("too_large", 413);
+  let text: string;
+  try { text = await req.text(); } catch { return fail("invalid"); }
+  if (text.length > MAX_BODY) return fail("too_large", 413);
+  let parsed: unknown;
+  try { parsed = JSON.parse(text); } catch { return fail("invalid"); }
+  const report = sanitizeReport(parsed);
+  if (!report) return fail("invalid");
+  const uid = await userIdFromRequest(req);
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
+  if (!telemetryPerClient.hit(uid ? `u:${uid}` : `ip:${ip}`) || !telemetryGlobal.hit("all")) return fail("rate_limited", 429);
+  try {
+    await repo.insertClientError(uid && (await repo.userExists(uid)) ? uid : null, report);
+    if (Math.random() < 0.01) await repo.pruneClientErrors();
+  } catch (e) {
+    console.error(e);
+    return fail("server_error", 500);
+  }
+  return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+}
 
 /* ---------- export / import ---------- */
 export const exportData = authed(async (_req, uid) => {

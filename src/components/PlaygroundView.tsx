@@ -6,9 +6,11 @@ import { useApp } from "@/client/app-context";
 import { TEMPLATES, type TemplateId } from "@/content/templates";
 import { Workbench } from "./Workbench";
 import { Button, cx } from "./ui";
+import { ShareButton } from "./ShareButton";
+import { PLAYGROUND_DRAFT_KEY } from "@/core/share";
 
 const TPL_ICON = { three: Box, webgl: Sparkles, webgpu: Cpu } as const;
-const DRAFT = "tp-playground-draft";
+const DRAFT = PLAYGROUND_DRAFT_KEY;
 
 export function PlaygroundView() {
   const { t, source, toast, ready } = useApp();
@@ -18,6 +20,7 @@ export function PlaygroundView() {
   const [title, setTitle] = useState("");
   const [snippetId, setSnippetId] = useState<string | null>(null);
   const [exampleId, setExampleId] = useState<string | null>(null);
+  const [shareId, setShareId] = useState<string | null>(null);
   const [runId, setRunId] = useState("pg:init");
   const current = useRef<string | null>(null);
   current.current = snippetId;
@@ -32,7 +35,7 @@ export function PlaygroundView() {
       if (sid) {
         const s = await source.getSnippet(sid).catch(() => null);
         if (!s) { toast(t("pg.loadFailed"), "error"); return; }
-        setCode(s.code); setTitle(s.title); setSnippetId(s.id); setExampleId(s.exampleId); setRunId(`pg:${s.id}`);
+        setCode(s.code); setTitle(s.title); setSnippetId(s.id); setExampleId(s.exampleId); setShareId(s.shareId ?? null); setRunId(`pg:${s.id}`);
         return;
       }
       if (tpl && tpl in TEMPLATES) { loadTemplate(tpl); return; }
@@ -49,20 +52,24 @@ export function PlaygroundView() {
   }, [code, title, snippetId]);
 
   function loadTemplate(id: TemplateId) {
-    setCode(TEMPLATES[id]); setTitle(""); setSnippetId(null); setExampleId(null); setRunId(`pg:${id}:${Date.now()}`);
+    setCode(TEMPLATES[id]); setTitle(""); setSnippetId(null); setExampleId(null); setShareId(null); setRunId(`pg:${id}:${Date.now()}`);
     if (params.get("snippet") || params.get("template") || params.get("new")) router.replace("/playground");
   }
 
-  const save = async () => {
+  /** Saves (create or update) and returns the snippet id, or null on failure. */
+  const save = async (): Promise<string | null> => {
     const input = { title: title.trim() || t("pg.untitled"), exampleId, code };
     try {
-      if (snippetId && (await source.updateSnippet(snippetId, input))) { toast(t("run.updated"), "success"); return; }
+      if (snippetId && (await source.updateSnippet(snippetId, input))) { toast(t("run.updated"), "success"); return snippetId; }
       const s = await source.createSnippet(input);
       setSnippetId(s.id);
+      setShareId(null);
       setTitle(s.title);
+      current.current = s.id;
       router.replace(`/playground?snippet=${s.id}`);
       toast(t("run.saved"), "success");
-    } catch { toast(t("common.error"), "error"); }
+      return s.id;
+    } catch { toast(t("common.error"), "error"); return null; }
   };
 
   const header = (
@@ -81,13 +88,14 @@ export function PlaygroundView() {
           );
         })}
       </div>
+      <ShareButton snippetId={snippetId} shareId={shareId} onChange={setShareId} ensureSaved={save} />
       <Button size="sm" variant="ghost" icon={<Plus className="h-4 w-4" />} onClick={() => loadTemplate("three")}>{t("pg.new")}</Button>
     </div>
   );
 
   return (
     <div className="h-dvh max-lg:h-auto max-lg:min-h-[calc(100dvh-56px)]">
-      <Workbench key={runId} storageKey={runId} code={code} setCode={setCode} onSave={save} header={header} />
+      <Workbench key={runId} storageKey={runId} code={code} setCode={setCode} onSave={() => { void save(); }} header={header} />
     </div>
   );
 }

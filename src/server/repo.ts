@@ -1,5 +1,7 @@
 /** Data access. Every function that touches user data takes the user id first and filters by it. */
 import { q } from "./db";
+import type { SharedSnippet } from "@/core/share";
+import type { TelemetryReport } from "@/core/telemetry";
 import { DEFAULT_SETTINGS, sanitizeSettings, type Settings, type Snippet, type SnippetMeta, type ProgressEntry } from "@/core/userdata";
 
 export interface UserRow { id: number; email: string; name: string; password_hash: string }
@@ -63,16 +65,16 @@ export async function setFavorite(uid: number, exampleId: string, on: boolean, a
 }
 
 /* snippets */
-type SnipRow = { id: string; title: string; example_id: string | null; code?: string; size?: number | string; created_at: string | number; updated_at: string | number };
-const toMeta = (r: SnipRow): SnippetMeta => ({ id: r.id, title: r.title, exampleId: r.example_id, size: Number(r.size ?? 0), createdAt: Number(r.created_at), updatedAt: Number(r.updated_at) });
-const toSnippet = (r: SnipRow): Snippet => ({ id: r.id, title: r.title, exampleId: r.example_id, code: r.code ?? "", createdAt: Number(r.created_at), updatedAt: Number(r.updated_at) });
+type SnipRow = { id: string; title: string; example_id: string | null; code?: string; share_id?: string | null; size?: number | string; created_at: string | number; updated_at: string | number };
+const toMeta = (r: SnipRow): SnippetMeta => ({ id: r.id, title: r.title, exampleId: r.example_id, shareId: r.share_id ?? null, size: Number(r.size ?? 0), createdAt: Number(r.created_at), updatedAt: Number(r.updated_at) });
+const toSnippet = (r: SnipRow): Snippet => ({ id: r.id, title: r.title, exampleId: r.example_id, code: r.code ?? "", shareId: r.share_id ?? null, createdAt: Number(r.created_at), updatedAt: Number(r.updated_at) });
 export const MAX_SNIPPETS = 300;
 export async function listSnippets(uid: number): Promise<SnippetMeta[]> {
-  return (await q<SnipRow>("SELECT id, title, example_id, length(code) AS size, created_at, updated_at FROM tp_snippets WHERE user_id = $1 ORDER BY updated_at DESC", [uid])).map(toMeta);
+  return (await q<SnipRow>("SELECT id, title, example_id, share_id, length(code) AS size, created_at, updated_at FROM tp_snippets WHERE user_id = $1 ORDER BY updated_at DESC", [uid])).map(toMeta);
 }
 export const countSnippets = async (uid: number) => Number((await q<{ n: string }>("SELECT count(*) AS n FROM tp_snippets WHERE user_id = $1", [uid]))[0].n);
 export async function getSnippet(uid: number, id: string): Promise<Snippet | null> {
-  const [r] = await q<SnipRow>("SELECT id, title, example_id, code, created_at, updated_at FROM tp_snippets WHERE user_id = $1 AND id = $2", [uid, id]);
+  const [r] = await q<SnipRow>("SELECT id, title, example_id, code, share_id, created_at, updated_at FROM tp_snippets WHERE user_id = $1 AND id = $2", [uid, id]);
   return r ? toSnippet(r) : null;
 }
 export async function createSnippet(uid: number, s: Snippet) {
@@ -80,7 +82,7 @@ export async function createSnippet(uid: number, s: Snippet) {
 }
 export async function updateSnippet(uid: number, id: string, s: { title: string; exampleId: string | null; code: string }, at: number): Promise<Snippet | null> {
   const [r] = await q<SnipRow>(`UPDATE tp_snippets SET title = $3, example_id = $4, code = $5, updated_at = $6 WHERE user_id = $1 AND id = $2
-    RETURNING id, title, example_id, code, created_at, updated_at`, [uid, id, s.title, s.exampleId, s.code, at]);
+    RETURNING id, title, example_id, code, share_id, created_at, updated_at`, [uid, id, s.title, s.exampleId, s.code, at]);
   return r ? toSnippet(r) : null;
 }
 export async function deleteSnippet(uid: number, id: string): Promise<boolean> {
@@ -89,3 +91,25 @@ export async function deleteSnippet(uid: number, id: string): Promise<boolean> {
 export async function allSnippets(uid: number): Promise<Snippet[]> {
   return (await q<SnipRow>("SELECT id, title, example_id, code, created_at, updated_at FROM tp_snippets WHERE user_id = $1 ORDER BY updated_at DESC", [uid])).map(toSnippet);
 }
+
+/* sharing — the owner check is the WHERE user_id clause; public reads go only through share_id */
+/** Set (or keep) the share id when on, clear it when off. Returns the share id, or undefined when the snippet is not this user's. */
+export async function setSnippetShare(uid: number, id: string, on: boolean, mint: () => string): Promise<string | null | undefined> {
+  if (!on) {
+    const r = await q("UPDATE tp_snippets SET share_id = NULL WHERE user_id = $1 AND id = $2 RETURNING id", [uid, id]);
+    return r.length ? null : undefined;
+  }
+  const [r] = await q<{ share_id: string | null }>("UPDATE tp_snippets SET share_id = COALESCE(share_id, $3) WHERE user_id = $1 AND id = $2 RETURNING share_id", [uid, id, mint()]);
+  return r ? r.share_id : undefined;
+}
+export async function getSharedSnippet(shareId: string): Promise<SharedSnippet | null> {
+  const [r] = await q<{ share_id: string; title: string; code: string; example_id: string | null; updated_at: string | number }>(
+    "SELECT share_id, title, code, example_id, updated_at FROM tp_snippets WHERE share_id = $1", [shareId]);
+  return r ? { id: r.share_id, title: r.title, code: r.code, exampleId: r.example_id, updatedAt: Number(r.updated_at) } : null;
+}
+
+/* client error telemetry */
+export async function insertClientError(uid: number | null, r: TelemetryReport) {
+  await q("INSERT INTO tp_client_errors (user_id, kind, message, stack, path, example_id) VALUES ($1,$2,$3,$4,$5,$6)", [uid, r.kind, r.message, r.stack, r.path, r.exampleId]);
+}
+export const pruneClientErrors = (days = 30) => q(`DELETE FROM tp_client_errors WHERE created_at < now() - ($1 || ' days')::interval`, [String(days)]);

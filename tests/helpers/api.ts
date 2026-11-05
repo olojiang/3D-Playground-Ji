@@ -3,9 +3,10 @@ import * as h from "@/server/handlers";
 /** Tiny in-process HTTP client that keeps a cookie jar, like a browser would. */
 export class Client {
   cookie = "";
-  async call(fn: (req: Request, params?: Record<string, string>) => Promise<Response>, opts: { method?: string; body?: unknown; raw?: string; params?: Record<string, string> } = {}) {
+  async call(fn: (req: Request, params?: Record<string, string>) => Promise<Response>, opts: { method?: string; body?: unknown; raw?: string; params?: Record<string, string>; headers?: Record<string, string> } = {}) {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.cookie) headers.cookie = this.cookie;
+    Object.assign(headers, opts.headers ?? {});
     const req = new Request("http://test.local/api", {
       method: opts.method ?? (opts.body !== undefined || opts.raw !== undefined ? "POST" : "GET"),
       headers,

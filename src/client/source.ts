@@ -17,6 +17,8 @@ export interface DataSource {
   createSnippet(s: SnippetInput): Promise<Snippet>;
   updateSnippet(id: string, s: SnippetInput): Promise<Snippet | null>;
   deleteSnippet(id: string): Promise<boolean>;
+  /** Make a snippet public (returns its share id) or private (returns null). Accounts only. */
+  setShared(id: string, on: boolean): Promise<string | null>;
 }
 
 export interface KV { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void }
@@ -82,6 +84,8 @@ export class LocalSource implements DataSource {
     this.write(LS.snippets, next);
     return next.length !== all.length;
   }
+  /** Share links live on the server, so guests must sign in first. */
+  async setShared(_id: string, _on: boolean): Promise<string | null> { throw new ApiError(401, "unauthorized"); }
   /** Everything a guest has, in the backup format the server's /api/import accepts. */
   async exportBackup() {
     return { app: "3d-playground-ji" as const, version: 1 as const, settings: await this.getSettings(), progress: await this.listProgress(), favorites: await this.listFavorites(), snippets: this.snippets() };
@@ -122,5 +126,8 @@ export class RemoteSource implements DataSource {
   async deleteSnippet(id: string) {
     try { await this.call(`/api/snippets/${encodeURIComponent(id)}`, { method: "DELETE" }); return true; }
     catch (e) { if (e instanceof ApiError && e.status === 404) return false; throw e; }
+  }
+  async setShared(id: string, on: boolean) {
+    return (await this.call<{ shareId: string | null }>(`/api/snippets/${encodeURIComponent(id)}/share`, { method: "PUT", body: JSON.stringify({ on }) })).shareId;
   }
 }

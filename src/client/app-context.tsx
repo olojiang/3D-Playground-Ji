@@ -7,7 +7,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { translate, type MessageKey } from "@/core/i18n";
 import { resolveTheme, themeById } from "@/core/themes";
 import { DEFAULT_SETTINGS, sanitizeSettings, type Lang, type Settings, type ProgressEntry } from "@/core/userdata";
-import { LocalSource, RemoteSource, api, ApiError, type DataSource } from "./source";
+import { LocalSource, RemoteSource, api, ApiError, LS, type DataSource } from "./source";
+import { langFromQuery } from "@/core/seo";
 
 export interface User { id: number; email: string; name: string }
 export interface Toast { id: number; text: string; tone: "info" | "success" | "error" }
@@ -109,7 +110,15 @@ export function AppProvider({ children, initialLang }: { children: ReactNode; in
       let u: User | null = null;
       try { u = (await api<{ user: User | null }>("/api/auth/me")).user; } catch { /* offline: guest */ }
       setUser(u);
-      try { await loadFor(u ? remote : local); } catch { await loadFor(local); }
+      const hadLocalSettings = !!storage().getItem(LS.settings);
+      let s: Settings | null = null;
+      try { s = await loadFor(u ? remote : local); } catch { s = await loadFor(local); }
+      // An explicit ?lang= link wins; a fresh guest keeps the language the server rendered with.
+      const want = langFromQuery(window.location.search) ?? (!u && !hadLocalSettings ? initialLang : null);
+      if (want && s && want !== s.lang) {
+        setSettings((prev) => ({ ...prev, lang: want }));
+        (u ? remote : local).saveSettings({ lang: want }).catch(() => {});
+      }
       setReady(true);
     })();
   }, []);

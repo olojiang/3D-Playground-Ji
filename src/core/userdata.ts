@@ -49,7 +49,7 @@ export const snippetInput = z.object({
   code: z.string().max(MAX_CODE),
 });
 export type SnippetInput = z.infer<typeof snippetInput>;
-export interface Snippet { id: string; title: string; exampleId: string | null; code: string; createdAt: number; updatedAt: number }
+export interface Snippet { id: string; title: string; exampleId: string | null; code: string; createdAt: number; updatedAt: number; /** Public link id when shared, else null. */ shareId?: string | null }
 export type SnippetMeta = Omit<Snippet, "code"> & { size: number };
 
 export interface ProgressEntry { exampleId: string; visitedAt: number; completedAt: number | null }

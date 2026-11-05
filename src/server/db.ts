@@ -64,6 +64,21 @@ export const STATEMENTS = [
     PRIMARY KEY (user_id, id)
   )`,
   `CREATE INDEX IF NOT EXISTS tp_snippets_user_updated ON tp_snippets (user_id, updated_at DESC)`,
+  // Public share links: a separate random id, NULL = private. Unsharing clears it, so old links die.
+  `ALTER TABLE tp_snippets ADD COLUMN IF NOT EXISTS share_id TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS tp_snippets_share ON tp_snippets (share_id) WHERE share_id IS NOT NULL`,
+  // Client error reports (no IP, no user agent). user_id only when signed in.
+  `CREATE TABLE IF NOT EXISTS tp_client_errors (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES tp_users(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL,
+    message TEXT NOT NULL,
+    stack TEXT,
+    path TEXT NOT NULL,
+    example_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS tp_client_errors_created ON tp_client_errors (created_at DESC)`,
 ];
 
 let schemaPromise: Promise<void> | null = null;

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Star, FileCode2, Pencil, Trash2, ExternalLink, Info } from "lucide-react";
+import { LayoutDashboard, Star, FileCode2, Pencil, Trash2, ExternalLink, Info, Globe2 } from "lucide-react";
 import { useApp } from "@/client/app-context";
 import { CATEGORIES } from "@/core/examples";
 import { trackProgress, type SnippetMeta } from "@/core/userdata";
@@ -9,6 +9,7 @@ import { timeAgo, type MessageKey } from "@/core/i18n";
 import { PageHeader, Card, Progress, Empty, IconButton, Chip } from "./ui";
 import { TrackGlyph } from "./brand";
 import { LessonCard } from "./LessonCard";
+import { ShareButton } from "./ShareButton";
 import { useCatalog } from "./Providers";
 
 export function MeView() {
@@ -80,10 +81,12 @@ export function MeView() {
                       <span>{t("me.updated", { when: timeAgo(lang, s.updatedAt) })}</span>
                       <span>·</span><span className="tabular-nums">{(s.size / 1024).toFixed(1)} KB</span>
                       {ex && <Chip>{t("me.based", { title: ex.title[lang] })}</Chip>}
+                      {s.shareId && <Chip tone="accent"><Globe2 className="mr-1 inline h-3 w-3" />{t("share.public")}</Chip>}
                     </div>
                   </Link>
                   <div className="flex items-center gap-0.5 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
                     <Link href={`/playground?snippet=${s.id}`}><IconButton label={t("me.open")} size="sm"><ExternalLink className="h-4 w-4" /></IconButton></Link>
+                    {user && <ShareButton compact snippetId={s.id} shareId={s.shareId} onChange={(sid) => setSnips((l) => (l ?? []).map((x) => (x.id === s.id ? { ...x, shareId: sid } : x)))} />}
                     <IconButton label={t("me.rename")} size="sm" onClick={() => rename(s)}><Pencil className="h-4 w-4" /></IconButton>
                     <IconButton label={t("me.delete")} size="sm" onClick={() => remove(s)} className="hover:!text-danger"><Trash2 className="h-4 w-4" /></IconButton>
                   </div>
