@@ -15,6 +15,9 @@ import { copyText } from "./ShareButton";
 
 function SharedPreview({ code, runKey, onError }: { code: string; runKey: number; onError: (text: string) => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  // Client-only: an SSR'd iframe can post "ready" before this listener exists, and the code would never run.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow || !isSandboxMessage(e.data)) return;
@@ -24,6 +27,7 @@ function SharedPreview({ code, runKey, onError }: { code: string; runKey: number
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   }, [code, onError]);
+  if (!mounted) return null;
   return (
     <iframe key={runKey} ref={frame} src="/sandbox.html" title="preview" sandbox="allow-scripts allow-pointer-lock" allow="fullscreen; gamepad; xr-spatial-tracking"
       className="absolute inset-0 h-full w-full border-0 bg-[#07070a]" />
@@ -55,7 +59,7 @@ export function SharedView({ snippet }: { snippet: SharedSnippet }) {
             <div className="flex flex-wrap items-center gap-2 text-[12px] text-faint">
               <span className="font-semibold uppercase tracking-[0.12em]">{t("share.sharedSnippet")}</span>
               <Chip>{t("share.readOnly")}</Chip>
-              <span>{t("share.updated", { when: timeAgo(lang, snippet.updatedAt) })}</span>
+              <span suppressHydrationWarning>{t("share.updated", { when: timeAgo(lang, snippet.updatedAt) })}</span>
             </div>
             <h1 className="mt-1 truncate font-display text-[22px] font-semibold tracking-[-0.015em] sm:text-[26px]">{snippet.title}</h1>
           </div>
