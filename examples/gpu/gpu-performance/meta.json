@@ -1,6 +1,6 @@
 {
   "slug": "gpu-performance",
-  "order": 11,
+  "order": 12,
   "difficulty": "intermediate",
   "requires": "webgl2",
   "tags": [

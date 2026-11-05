@@ -1,0 +1,52 @@
+{
+  "slug": "gltf-skeletal-animation",
+  "order": 8,
+  "difficulty": "advanced",
+  "requires": "webgl",
+  "tags": [
+    "gltf",
+    "skinning",
+    "skeleton",
+    "bones",
+    "animation-mixer",
+    "crossfade"
+  ],
+  "title": {
+    "zh": "glTF 骨骼动画：蒙皮与交叉淡入",
+    "en": "glTF Skeletal Animation: Skinning & Cross-fades"
+  },
+  "summary": {
+    "zh": "加载带骨骼的 glTF 机器人，用 AnimationMixer 在走、跑、跳舞之间平滑过渡，并用 SkeletonHelper 看清每根骨骼。",
+    "en": "Load a rigged glTF robot, blend between walk, run and dance with an AnimationMixer, and inspect every bone with a SkeletonHelper."
+  },
+  "concepts": {
+    "zh": "## 模型动画从哪里来\n\n美术在 Blender、Maya 里给角色绑定一副**骨骼**（skeleton），再给骨骼做关键帧动画，导出成 **glTF / GLB**。GLB 是二进制打包的 glTF：网格、材质、骨骼层级、动画片段全在一个文件里。本节加载本站自带的 `RobotExpressive.glb`（作者 Tomás Laulhé / Quaternius，CC0 公共领域），它有 43 根骨骼和 14 个动画片段。\n\n```js\nconst gltf = await new GLTFLoader().loadAsync(\"/models/RobotExpressive.glb\");\nscene.add(gltf.scene);          // 层级：Object3D / Bone / Mesh / SkinnedMesh\ngltf.animations;                // AnimationClip[]：Idle、Walking、Running、Dance…\n```\n\n## 骨骼是什么\n\n`Bone` 就是一个普通的 `Object3D`，只是组成了一棵父子树：Hips → Abdomen → Torso → Shoulder → UpperArm → LowerArm → Palm。转动肩膀，子骨骼的世界矩阵都会跟着变，整条手臂随之摆动，这就是**前向运动学**。动画片段里的轨道，例如 `UpperArmR.quaternion`，每帧只改骨骼的局部旋转。\n\n## 蒙皮：顶点如何跟着骨骼走\n\n`SkinnedMesh` 的每个顶点带两组属性：`skinIndex`（最多 4 根骨骼的编号）和 `skinWeight`（对应权重，和为 1）。`Skeleton` 保存每根骨骼的**绑定姿势逆矩阵** `boneInverses`。顶点着色器里：\n\n```glsl\nmat4 skin = w.x * bone(i.x) + w.y * bone(i.y) + w.z * bone(i.z) + w.w * bone(i.w);\nvec4 p = bindMatrixInverse * skin * bindMatrix * vec4(position, 1.0);\n```\n\n其中 `bone(i) = boneWorld[i] * boneInverse[i]`：先把顶点从绑定姿势变到骨骼局部，再随骨骼当前姿势变回去。这叫**线性混合蒙皮**（LBS）。three.js 把所有骨骼矩阵放进一张浮点纹理，每根骨骼占 4 个像素，在着色器里用 `texelFetch` 读取。这个机器人比较特别：大部分零件是**刚性**挂在骨骼下的普通 Mesh，只有双手是真正的蒙皮网格，两种做法都很常见。\n\n## AnimationMixer 与交叉淡入淡出\n\n- `mixer.clipAction(clip)` 为每个片段创建一个 `AnimationAction`；\n- 每帧 `mixer.update(delta)` 推进所有动作，按**权重**混合它们对同一根骨骼的影响；\n- `a.crossFadeTo(b, 0.5, warp)` 在 0.5 秒内让 a 的权重 1→0、b 的权重 0→1，`warp` 还会同时插值播放速度，让走路和跑步的步伐对齐；\n- 一次性的表情动作用 `LoopOnce` + `clampWhenFinished`，监听 mixer 的 `finished` 事件再淡回原来的状态。\n\n> 打开 **SkeletonHelper** 看骨骼线条，再用 **follow bone** 选择一根骨骼：黄色小球和坐标轴跟着它移动，左下角显示它到根部的父子链。",
+    "en": "## Where model animation comes from\n\nAn artist rigs a character with a **skeleton** in Blender or Maya, keyframes the bones, and exports **glTF / GLB**. GLB is binary-packed glTF: meshes, materials, the bone hierarchy and animation clips in one file. This lesson loads `RobotExpressive.glb`, served by this site (by Tomás Laulhé / Quaternius, CC0 public domain). It has 43 bones and 14 clips.\n\n```js\nconst gltf = await new GLTFLoader().loadAsync(\"/models/RobotExpressive.glb\");\nscene.add(gltf.scene);          // hierarchy of Object3D / Bone / Mesh / SkinnedMesh\ngltf.animations;                // AnimationClip[]: Idle, Walking, Running, Dance…\n```\n\n## What a bone is\n\nA `Bone` is just an `Object3D` arranged in a parent–child tree: Hips → Abdomen → Torso → Shoulder → UpperArm → LowerArm → Palm. Rotate the shoulder and every child's world matrix follows, so the whole arm swings. That is **forward kinematics**. A track such as `UpperArmR.quaternion` only changes one bone's local rotation each frame.\n\n## Skinning: how vertices follow bones\n\nEvery vertex of a `SkinnedMesh` carries `skinIndex` (up to four bone ids) and `skinWeight` (their weights, summing to 1). The `Skeleton` stores each bone's **inverse bind matrix** in `boneInverses`. In the vertex shader:\n\n```glsl\nmat4 skin = w.x * bone(i.x) + w.y * bone(i.y) + w.z * bone(i.z) + w.w * bone(i.w);\nvec4 p = bindMatrixInverse * skin * bindMatrix * vec4(position, 1.0);\n```\n\nHere `bone(i) = boneWorld[i] * boneInverse[i]`: take the vertex from the bind pose into the bone's local space, then back out with the bone's current pose. This is **linear blend skinning** (LBS). three.js packs every bone matrix into a float texture, four texels per bone, and reads them with `texelFetch`. This robot is a nice mix: most parts are **rigid** meshes parented to a bone, and only the hands are truly skinned. Both techniques are common.\n\n## AnimationMixer and cross-fades\n\n- `mixer.clipAction(clip)` creates one `AnimationAction` per clip.\n- `mixer.update(delta)` advances all actions every frame and blends their effect on each bone by **weight**.\n- `a.crossFadeTo(b, 0.5, warp)` takes a's weight from 1 to 0 and b's from 0 to 1 over 0.5 s. `warp` also blends their playback speeds so walk and run footsteps line up.\n- One-shot emotes use `LoopOnce` + `clampWhenFinished`; listen for the mixer's `finished` event, then fade back to the previous state.\n\n> Turn on **SkeletonHelper** to see the bones, then pick a bone under **follow bone**: the yellow marker and axes ride on it, and the bottom-left line shows its chain up to the root."
+  },
+  "keyApis": [
+    "GLTFLoader.loadAsync",
+    "THREE.SkinnedMesh",
+    "THREE.Skeleton",
+    "THREE.Bone",
+    "THREE.SkeletonHelper",
+    "THREE.AnimationMixer",
+    "AnimationAction.crossFadeTo",
+    "AnimationAction.fadeIn / fadeOut",
+    "THREE.LoopOnce",
+    "Skeleton.getBoneByName"
+  ],
+  "tryThis": {
+    "zh": [
+      "勾选 warp time scales，再在 Walking 和 Running 之间切换，观察步伐是否更自然。",
+      "把 cross-fade 设为 0，体会没有过渡时动作的“跳变”。",
+      "在动画循环里给 Head 骨骼额外加一点旋转（例如 bone.rotation.y += Math.sin(t)），注意要在 mixer.update 之后修改。",
+      "头部网格带有 Angry / Surprised / Sad 三个变形目标：找到 morphTargetDictionary，用滑块控制 morphTargetInfluences 做表情。"
+    ],
+    "en": [
+      "Tick warp time scales and switch between Walking and Running: do the footsteps blend more naturally?",
+      "Set cross-fade to 0 to feel the pop when there is no transition.",
+      "In the loop, add extra rotation to the Head bone (e.g. bone.rotation.y += Math.sin(t)); do it after mixer.update.",
+      "The head mesh has Angry / Surprised / Sad morph targets: find morphTargetDictionary and drive morphTargetInfluences from a slider."
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "slug": "shadow-mapping",
+  "order": 12,
+  "difficulty": "advanced",
+  "requires": "webgl2",
+  "tags": [
+    "shadows",
+    "shadow-map",
+    "depth-texture",
+    "framebuffer",
+    "pcf",
+    "bias"
+  ],
+  "title": {
+    "zh": "手写阴影贴图：深度、偏移与 PCF",
+    "en": "Shadow Mapping by Hand: Depth, Bias & PCF"
+  },
+  "summary": {
+    "zh": "用原生 WebGL 2 先从光源渲染深度纹理，再在主 pass里逐片元比较深度，亲眼看到阴影粉刺、彼得潘现象和 PCF 软阴影。",
+    "en": "In raw WebGL 2, render a depth texture from the light, compare depths per fragment in the main pass, and see shadow acne, peter-panning and PCF soft shadows for yourself."
+  },
+  "concepts": {
+    "zh": "## 阴影的本质：光“看得见”吗？\n\n一个点在阴影里，等价于**从光源看过去，它前面还有别的东西**。阴影贴图（shadow map）把这个问题变成两次渲染：\n\n1. **深度 pass**：把相机放到光源处渲染整个场景，只写深度，存进一张深度纹理。每个纹素记录“这个方向上离光最近的表面有多远”。\n2. **主 pass**：从真正的相机渲染。每个片元再用光源的矩阵变换一次，得到它在阴影贴图里的坐标和深度 `p.z`，与存储的深度比较：`p.z > stored` 说明被挡住了。\n\n```glsl\nvec3 p = vLightClip.xyz / vLightClip.w * 0.5 + 0.5; // 光源裁剪空间 → [0,1]\nfloat stored = texture(uShadowMap, p.xy).r;\nfloat lit = (p.z - bias > stored) ? 0.0 : 1.0;\n```\n\n方向光用**正交投影**（光线平行），聚光灯用透视投影，点光源需要 6 个方向的立方体阴影贴图。\n\n## WebGL 2 里的深度纹理\n\nWebGL 2 原生支持深度纹理：`texStorage2D(TEXTURE_2D, 1, DEPTH_COMPONENT24, size, size)`，挂到帧缓冲的 `DEPTH_ATTACHMENT`，再 `drawBuffers([NONE])` 表示不需要颜色。采样时用 `NEAREST`，因为深度值不能被插值后再比较。\n\n## 阴影粉刺与彼得潘现象\n\n- **阴影粉刺（shadow acne）**：阴影贴图分辨率有限，一个纹素覆盖一片倾斜的表面，表面自己和“自己的深度”比较时一半大一半小，出现条纹。把 bias 调到 0、关掉 PCF 就能看到满屏的波纹。\n- **偏移（bias）**：比较前把深度往光源方向挪一点。**斜率缩放偏移**根据表面与光线的夹角加大偏移，掠射角的面最需要它。\n- **彼得潘现象（peter-panning）**：偏移太大，阴影和物体脱节，物体像飘起来一样。把 bias 拉到 0.04 看看立柱脚下。\n- 另一种思路：深度 pass里**剔除正面**，只把背面写进贴图，粉刺少了，但薄物体更容易漏光。\n\n## PCF：柔和的边缘\n\n单次比较的结果只有 0 或 1，边缘是锯齿。**PCF（百分比渐近过滤）**在周围采样多次、对比较结果取平均。注意平均的是比较结果，而不是深度本身。半径 2 就是 5×5=25 次采样。WebGL 2 还提供硬件比较：`sampler2DShadow` 配合 `TEXTURE_COMPARE_MODE` 和 `LINEAR` 过滤，一次采样就能得到 2×2 的 PCF。\n\n> 左上角的小图就是光源看到的深度：越暗越近。改变正交视锥大小，观察阴影的清晰度如何随“每个纹素覆盖多少米”变化。",
+    "en": "## What a shadow really is: can the light see you?\n\nA point is in shadow when **something else is in front of it as seen from the light**. A shadow map turns that question into two renders:\n\n1. **Depth pass**: put a camera at the light, render the scene, and write only depth into a depth texture. Each texel stores how far the nearest surface is in that direction.\n2. **Main pass**: render from the real camera. Transform each fragment with the light's matrix too, giving its shadow-map coordinates and depth `p.z`, and compare it with the stored depth: `p.z > stored` means it is blocked.\n\n```glsl\nvec3 p = vLightClip.xyz / vLightClip.w * 0.5 + 0.5; // light clip space → [0,1]\nfloat stored = texture(uShadowMap, p.xy).r;\nfloat lit = (p.z - bias > stored) ? 0.0 : 1.0;\n```\n\nA directional light uses an **orthographic projection** (parallel rays), a spot light a perspective one, and a point light needs a six-sided cube shadow map.\n\n## Depth textures in WebGL 2\n\nWebGL 2 supports depth textures natively: `texStorage2D(TEXTURE_2D, 1, DEPTH_COMPONENT24, size, size)`, attach it as the framebuffer's `DEPTH_ATTACHMENT`, and call `drawBuffers([NONE])` because no colour is needed. Sample it with `NEAREST`: depth must not be interpolated before the comparison.\n\n## Shadow acne and peter-panning\n\n- **Shadow acne**: a shadow-map texel covers a patch of a tilted surface, so the surface compared against its own depth is half in front and half behind, giving stripes. Set bias to 0 and turn off PCF to see the moiré everywhere.\n- **Bias** nudges the depth toward the light before comparing. **Slope-scaled bias** grows with the angle between surface and light; grazing surfaces need it most.\n- **Peter-panning**: too much bias detaches the shadow from the object, which seems to float. Push bias to 0.04 and look at the feet of the pillars.\n- An alternative: **cull front faces** in the depth pass so only back faces land in the map. Less acne, but thin objects leak light more easily.\n\n## PCF: soft edges\n\nOne comparison yields only 0 or 1, so edges are jagged. **PCF (percentage-closer filtering)** compares several neighbouring texels and averages the results. You average the comparisons, not the depths. Radius 2 means 5×5 = 25 taps. WebGL 2 also offers hardware comparison: a `sampler2DShadow` with `TEXTURE_COMPARE_MODE` and `LINEAR` filtering returns 2×2 PCF in a single tap.\n\n> The inset at the top-left is what the light sees: darker means closer. Change the ortho frustum size and watch shadow sharpness follow how many centimetres each texel covers."
+  },
+  "keyApis": [
+    "gl.DEPTH_COMPONENT24",
+    "gl.texStorage2D",
+    "gl.framebufferTexture2D",
+    "gl.DEPTH_ATTACHMENT",
+    "gl.drawBuffers([gl.NONE])",
+    "gl.cullFace",
+    "texture()",
+    "textureSize",
+    "orthographic projection",
+    "sampler2DShadow"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 bias 设为 0、关闭 slope-scaled bias 和 PCF，找到最小的、刚好消除粉刺的 bias。",
+      "把 shadow map size 调到 256，再缩小 ortho frustum size，体会“分辨率”与“覆盖范围”的取舍（级联阴影 CSM 正是为此而生）。",
+      "勾选 cull front faces，再把 bias 调到 0，看粉刺是否消失、哪里开始漏光。",
+      "改用硬件比较：把纹理的 TEXTURE_COMPARE_MODE 设为 COMPARE_REF_TO_TEXTURE、过滤改为 LINEAR，着色器里换成 sampler2DShadow 和 texture(uShadowMap, vec3(uv, depth))。"
+    ],
+    "en": [
+      "Set bias to 0, turn off slope-scaled bias and PCF, then find the smallest bias that just removes the acne.",
+      "Drop shadow map size to 256, then shrink the ortho frustum: feel the trade-off between resolution and coverage (cascaded shadow maps exist for exactly this).",
+      "Tick cull front faces and set bias to 0: does the acne go away, and where does light start to leak?",
+      "Switch to hardware comparison: set TEXTURE_COMPARE_MODE to COMPARE_REF_TO_TEXTURE with LINEAR filtering, and use a sampler2DShadow with texture(uShadowMap, vec3(uv, depth))."
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 {
   "slug": "instancing",
-  "order": 9,
+  "order": 10,
   "difficulty": "intermediate",
   "requires": "webgl",
   "tags": [

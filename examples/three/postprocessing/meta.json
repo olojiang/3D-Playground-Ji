@@ -1,6 +1,6 @@
 {
   "slug": "postprocessing",
-  "order": 10,
+  "order": 11,
   "difficulty": "advanced",
   "requires": "webgl",
   "tags": [

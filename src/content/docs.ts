@@ -109,7 +109,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import GUI from "three/addons/libs/lil-gui.module.min.js";
 \`\`\`
 
-three.js 从本站本地提供（无需外网），版本与示例一致。
+three.js 从本站本地提供（无需外网），版本与示例一致。本站还自带一个 CC0 骨骼动画模型，可用 \`new URL("/models/RobotExpressive.glb", location.href)\` 加载。
 
 ## PG 全局对象
 
@@ -138,7 +138,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import GUI from "three/addons/libs/lil-gui.module.min.js";
 \`\`\`
 
-three.js is served locally by this site (no CDN needed), at the same version the lessons use.
+three.js is served locally by this site (no CDN needed), at the same version the lessons use. The site also ships a CC0 rigged model you can load from \`new URL("/models/RobotExpressive.glb", location.href)\`.
 
 ## The PG global
 

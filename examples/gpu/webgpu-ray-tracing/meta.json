@@ -1,0 +1,53 @@
+{
+  "slug": "webgpu-ray-tracing",
+  "order": 11,
+  "difficulty": "advanced",
+  "requires": "webgpu",
+  "tags": [
+    "ray-tracing",
+    "path-tracing",
+    "compute",
+    "wgsl",
+    "storage-texture",
+    "progressive"
+  ],
+  "title": {
+    "zh": "WebGPU 计算光线追踪：渐进式路径追踪",
+    "en": "WebGPU Ray Tracing: a Progressive Path Tracer"
+  },
+  "summary": {
+    "zh": "每个像素一个计算线程，追踪光线在漫反射、金属、玻璃球之间弹射，逐帧累积样本，噪点慢慢消失。",
+    "en": "One compute thread per pixel traces rays bouncing between diffuse, metal and glass spheres, accumulating samples frame by frame until the noise melts away."
+  },
+  "concepts": {
+    "zh": "## 光栅化 vs 光线追踪\n\n光栅化把三角形“投”到屏幕上，问的是“这个三角形覆盖了哪些像素”；光线追踪反过来，从每个像素**发出一条光线**，问“它先撞到了什么”。反射、折射、柔和阴影、焦散在光线追踪里几乎是免费的，因为它们本来就是光线弹来弹去的结果。\n\n这类“每个像素独立计算”的工作非常适合 GPU：本例一个线程负责一个像素，用 **计算着色器** 完成全部追踪，再用一个很小的渲染 pass把结果贴到画布上。\n\n## 线程如何对应像素\n\n```wgsl\n@compute @workgroup_size(64)\nfn main(@builtin(workgroup_id) wg : vec3u, @builtin(local_invocation_index) lid : u32) {\n  let x = wg.x * 64u + lid;   // 一行切成 64 像素一段\n  let y = wg.y;               // 每一行一排工作组\n```\n\n`dispatchWorkgroups(ceil(W / 64), H)`。这里没有用 `global_invocation_id`，也没有整数 `%` 和 `/`，因为软件 GPU（SwiftShader）对它们支持不好；结果完全一样。\n\n## 路径追踪的循环\n\nWGSL 不允许递归，所以用循环代替：带着一个**通量**（throughput），每次弹射乘上表面颜色。\n\n- **漫反射**：沿 `normal + 随机单位向量` 方向弹出（余弦分布的 Lambert）；\n- **金属**：`reflect(rd, n)` 再加一点随机扰动（fuzz）；\n- **玻璃**：用 Schlick 近似算菲涅耳反射率，随机决定反射还是 `refract` 折射；\n- **自发光**：撞到灯就把 `通量 × 亮度` 加进结果并结束；飞出场景就采样天空；\n- **俄罗斯轮盘**：几次弹射后按概率提前结束弱路径，幸存者除以概率保持无偏。\n\n## 渐进累积\n\n单个样本噪点很重。每帧把新样本加进一个存储缓冲 `accum`（rgb 之和 + 样本数），显示 `sum / count`。每个像素内随机抖动采样位置，还顺带得到抗锯齿；在镜头圆盘上随机取起点，就得到**景深**。相机一动，就把帧号归零重新开始。\n\n```wgsl\nvar acc = select(accum[idx], vec4f(0.0), P.frame == 0u);\nacc += vec4f(col, f32(P.spp));\ntextureStore(outTex, vec2u(x, y), vec4f(tonemap(acc.rgb / acc.w), 1.0));\n```\n\n> 噪点按 1/√N 下降：样本数翻四倍，噪点才减半。这就是实时光追需要降噪器的原因。",
+    "en": "## Rasterisation vs ray tracing\n\nRasterisation projects triangles onto the screen and asks which pixels each triangle covers. Ray tracing turns it around: from every pixel it **shoots a ray** and asks what it hits first. Reflections, refraction, soft shadows and caustics come almost for free, because they are just rays bouncing around.\n\nWork where every pixel is independent suits the GPU perfectly. Here one thread owns one pixel, the whole trace runs in a **compute shader**, and a tiny render pass blits the result to the canvas.\n\n## Mapping threads to pixels\n\n```wgsl\n@compute @workgroup_size(64)\nfn main(@builtin(workgroup_id) wg : vec3u, @builtin(local_invocation_index) lid : u32) {\n  let x = wg.x * 64u + lid;   // each row cut into 64-pixel segments\n  let y = wg.y;               // one row of workgroups per image row\n```\n\n`dispatchWorkgroups(ceil(W / 64), H)`. There is no `global_invocation_id` and no integer `%` or `/`, because software GPUs (SwiftShader) handle them badly; the result is identical.\n\n## The path-tracing loop\n\nWGSL forbids recursion, so a loop carries a **throughput** that each bounce multiplies by the surface colour.\n\n- **Diffuse**: bounce toward `normal + random unit vector` (cosine-weighted Lambert).\n- **Metal**: `reflect(rd, n)` plus a little random fuzz.\n- **Glass**: Schlick's approximation gives the Fresnel reflectance; pick reflect or `refract` at random.\n- **Emissive**: hitting a light adds `throughput × emission` and ends the path; escaping samples the sky.\n- **Russian roulette**: after a few bounces, randomly end weak paths and divide survivors by the probability to stay unbiased.\n\n## Progressive accumulation\n\nOne sample is very noisy. Each frame adds new samples to a storage buffer `accum` (sum of rgb + sample count) and displays `sum / count`. Jittering inside each pixel gives anti-aliasing for free; starting rays on a random point of a lens disc gives **depth of field**. When the camera moves, the frame counter resets.\n\n```wgsl\nvar acc = select(accum[idx], vec4f(0.0), P.frame == 0u);\nacc += vec4f(col, f32(P.spp));\ntextureStore(outTex, vec2u(x, y), vec4f(tonemap(acc.rgb / acc.w), 1.0));\n```\n\n> Noise falls as 1/√N: four times the samples only halves the noise. That is why real-time ray tracing relies on denoisers."
+  },
+  "keyApis": [
+    "@compute @workgroup_size",
+    "@builtin(workgroup_id)",
+    "@builtin(local_invocation_index)",
+    "var<storage, read_write>",
+    "texture_storage_2d<rgba8unorm, write>",
+    "textureStore",
+    "textureLoad",
+    "reflect / refract",
+    "createComputePipelineAsync",
+    "dispatchWorkgroups",
+    "queue.onSubmittedWorkDone"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 max bounces 设为 1、2、3，观察玻璃球和镜面球什么时候才“正确”。",
+      "调大 aperture 并改变 focus distance，让焦点落在前排的小球上。",
+      "在 SCENE 数组里加一个新球：比如一个粗糙金属球（material 1，fuzz 0.3）或一盏绿色的灯。",
+      "关掉 sun，只靠两盏发光球照明，注意噪点变多：路径必须“碰巧”撞到小灯，这正是 NEE（直接光源采样）要解决的问题。"
+    ],
+    "en": [
+      "Set max bounces to 1, 2 and 3: when do the glass and mirror spheres start to look right?",
+      "Raise aperture and change focus distance until the small spheres in front are in focus.",
+      "Add a sphere to the SCENE array: a rough metal one (material 1, fuzz 0.3) or a green light.",
+      "Turn off the sun and light the scene with the two glowing spheres only: noise goes up because paths must hit a small light by chance, which is exactly what next-event estimation fixes."
+    ]
+  }
+}

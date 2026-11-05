@@ -20,6 +20,8 @@ The program runs inside `public/sandbox.html`, a sandboxed iframe, as an ES modu
   `three`, `three/webgpu`, `three/tsl`, `three/addons/<path>.js` (e.g. `three/addons/controls/OrbitControls.js`, `three/addons/libs/lil-gui.module.min.js`, `three/addons/postprocessing/EffectComposer.js`).
   Raw WebGL / WebGPU examples need no imports at all.
 - **No network.** No URLs, no `fetch`, no external textures/models. Generate textures procedurally (`CanvasTexture`, `DataTexture`, typed arrays).
+  The one exception is a model this site ships itself: put the file (CC0 or similarly free) in `public/models/`, credit it in `public/models/README.md`,
+  and load it with a site-relative URL, e.g. `new GLTFLoader().loadAsync(new URL("/models/RobotExpressive.glb", location.href).href)` (`/models/*` is CORS-enabled for the sandbox).
 - **Responsive.** Keep the drawing buffer in sync with `canvas.clientWidth/clientHeight` (use `new ResizeObserver(resize).observe(canvas)`), and multiply by `Math.min(devicePixelRatio, 2)` for raw WebGL/WebGPU.
 - **Animate with `requestAnimationFrame` or `renderer.setAnimationLoop`.** The sandbox wraps rAF to provide pause/resume and an FPS meter for free.
 - Use `THREE.Timer` (not the deprecated `THREE.Clock`): `timer.update(time); timer.getDelta()`.

@@ -1,6 +1,6 @@
 {
   "slug": "pbr-environment",
-  "order": 11,
+  "order": 12,
   "difficulty": "advanced",
   "requires": "webgl",
   "tags": [

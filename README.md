@@ -4,7 +4,7 @@
 
 **把 GPU 变成你的画布 · Turn the GPU into your canvas**
 
-在浏览器里边读、边改、边看：Three.js、WebGL 着色器、GPU / WebGPU 计算，36 节可实时运行的中英双语课程。
+在浏览器里边读、边改、边看：Three.js、WebGL 着色器、GPU / WebGPU 计算，40 节可实时运行的中英双语课程。
 
 [**▶ 立即在线体验 / Try it live**](https://3d.827722.xyz) &nbsp;·&nbsp; [中文](#中文) &nbsp;·&nbsp; [English](#english)
 
@@ -33,21 +33,21 @@
 
 | 你是… | 你能得到 |
 | --- | --- |
-| 前端工程师，想入门 3D | 从「场景 · 相机 · 渲染器」开始，13 节 Three.js 课程覆盖日常项目 90% 的需求 |
-| 想真正搞懂着色器的人 | 不靠黑盒，亲手写 MVP 矩阵、光照、噪声、光线步进，12 节 WebGL / GLSL |
-| 对 GPU 计算好奇的人 | 从「CPU vs GPU」讲到 WebGPU 计算管线、GPGPU、性能分析，11 节 |
+| 前端工程师，想入门 3D | 从「场景 · 相机 · 渲染器」开始，14 节 Three.js 课程覆盖日常项目 90% 的需求 |
+| 想真正搞懂着色器的人 | 不靠黑盒，亲手写 MVP 矩阵、光照、噪声、光线步进、阴影贴图、延迟渲染，14 节 WebGL / GLSL |
+| 对 GPU 计算好奇的人 | 从「CPU vs GPU」讲到 WebGPU 计算管线、GPGPU、光线追踪、性能分析，12 节 |
 | 老师 / 技术分享者 | 每节都有可交互参数面板，现场拖滑块就能讲明白一个概念 |
 | 团队 / 个人实验者 | Playground 一键起手 Three.js / WebGL 2 / WebGPU，代码片段云端保存 |
 
-### 三条学习路径 · 36 节可运行课程
+### 三条学习路径 · 40 节可运行课程
 
 每节课都包含：中英双语概念文章 · 核心 API 速查 · 练习题 · 可编辑源码 · 实时预览 · 参数面板。
 
 <table>
 <tr>
-<th>Three.js 核心（13）</th>
-<th>WebGL 与着色器（12）</th>
-<th>GPU 与 WebGPU 计算（11）</th>
+<th>Three.js 核心（14）</th>
+<th>WebGL 与着色器（14）</th>
+<th>GPU 与 WebGPU 计算（12）</th>
 </tr>
 <tr valign="top">
 <td>
@@ -59,12 +59,13 @@
 5. 纹理与 UV
 6. 场景图与变换
 7. 动画：缓动与关键帧
-8. 射线拾取
-9. 实例化渲染
-10. 后期处理
-11. PBR 与环境光照
-12. 粒子：Points 星系
-13. 相机：透视、正交与视锥
+8. glTF 骨骼动画：蒙皮与交叉淡入
+9. 射线拾取
+10. 实例化渲染
+11. 后期处理
+12. PBR 与环境光照
+13. 粒子：Points 星系
+14. 相机：透视、正交与视锥
 
 </td>
 <td>
@@ -80,7 +81,9 @@
 9. three.js ShaderMaterial
 10. 帧缓冲与后期处理
 11. 手写光照：Lambert、Phong、Fresnel
-12. 着色器调试：用颜色“打印”数值
+12. 手写阴影贴图：深度、偏移与 PCF
+13. 延迟渲染：G-buffer 与上百盏灯
+14. 着色器调试：用颜色“打印”数值
 
 </td>
 <td>
@@ -95,7 +98,8 @@
 8. 绘制调用与实例化
 9. three.js WebGPURenderer 与 TSL
 10. 计算着色器做图像处理
-11. GPU 性能：时间花在哪里
+11. WebGPU 计算光线追踪：渐进式路径追踪
+12. GPU 性能：时间花在哪里
 
 </td>
 </tr>
@@ -148,7 +152,7 @@
 
 ### 亮点
 
-- ✨ **真·可运行**：36 节课全部在 headless Chromium（SwiftShader 软件渲染）里自动跑过，零 console error。
+- ✨ **真·可运行**：40 节课全部在 headless Chromium（SwiftShader 软件渲染）里自动跑过，零 console error。
 - 🧠 **讲原理，不只给代码**：例如讲清 `workgroup_id * WG + local_invocation_index` 与 `global_invocation_id` 的等价、`onSubmittedWorkDone` 如何控制 in-flight 帧、为什么 GPGPU 要 ping-pong 两张纹理。
 - 🛟 **稳健降级**：WebGPU 不可用时给出清晰提示；TSL 课程自动回退到 WebGL2；着色器避开软件渲染器会崩溃的写法。
 - 🧩 **可维护、可复用**：纯逻辑集中在 `src/core` 并全部单测覆盖；服务端处理器是框架无关的 `Request → Response`；一节课 = 一个文件夹，新增课程无需改任何页面代码。
@@ -168,11 +172,11 @@ Three.js 与 WebGL 课程支持所有现代浏览器。WebGPU 课程需要 **Chr
 
 The hardest part of learning graphics isn't the math, it's that **you can't see it**. 3D Playground puts three things on one screen: **an article that explains the idea**, **code you can edit**, and **a live result that updates instantly**. Nothing to install: go from your first triangle to raymarching, GPU particles and compute shaders in the browser.
 
-### Three tracks, 36 runnable lessons
+### Three tracks, 40 runnable lessons
 
-- **Three.js essentials (13)**: scene/camera/renderer, BufferGeometry, materials, lights & shadows, textures, scene graph, animation, raycasting, instancing, post-processing, PBR & IBL, particles, cameras & frustum.
-- **WebGL & shaders (12)**: the pipeline, attributes/varyings, uniforms, MVP by hand, sampling & mipmaps, SDF art, noise & fBm, raymarching, ShaderMaterial, framebuffers, GLSL lighting, shader debugging.
-- **GPU & WebGPU compute (11)**: CPU vs GPU parallelism, hello WebGPU, buffers & bind groups, compute basics, compute particles, Game of Life, GPGPU on WebGL2, draw calls & instancing, WebGPURenderer & TSL, image compute, GPU performance.
+- **Three.js essentials (14)**: scene/camera/renderer, BufferGeometry, materials, lights & shadows, textures, scene graph, animation, glTF skeletal animation, raycasting, instancing, post-processing, PBR & IBL, particles, cameras & frustum.
+- **WebGL & shaders (14)**: the pipeline, attributes/varyings, uniforms, MVP by hand, sampling & mipmaps, SDF art, noise & fBm, raymarching, ShaderMaterial, framebuffers, GLSL lighting, shadow mapping by hand, deferred rendering, shader debugging.
+- **GPU & WebGPU compute (12)**: CPU vs GPU parallelism, hello WebGPU, buffers & bind groups, compute basics, compute particles, Game of Life, GPGPU on WebGL2, draw calls & instancing, WebGPURenderer & TSL, image compute, WebGPU path tracing, GPU performance.
 
 Every lesson ships a bilingual concept article, core API notes, exercises, editable source, a live preview and a parameter panel.
 
@@ -218,6 +222,7 @@ npm run lint         # ESLint + tsc --noEmit
 | `src/content` | 文档与 Playground 模板 |
 | `examples/<track>/<slug>` | 一节课一个文件夹：`meta.json` + `main.js`（规范见 `docs/AUTHORING-EXAMPLES.md`） |
 | `public/sandbox.html` | 课程运行的 iframe 沙箱 |
+| `public/models` | 课程用到的本地模型（CC0，来源与署名见 `public/models/README.md`） |
 | `scripts/` | vendor、课程打包、开发服务器、headless 课程检查 |
 
 ### 参与贡献 · Contributing
@@ -234,6 +239,10 @@ PRs welcome! Setup, the TDD rule, lesson authoring and the PR checklist are in *
 1. 在 `examples/<three|webgl|gpu>/` 下新建文件夹，写 `meta.json`（中英标题、摘要、文章、API、练习）和 `main.js`。
 2. `npm test` 校验元数据与双语完整性；`python3 scripts/check_example.py <track>/<slug>` 用 headless 浏览器跑一遍并截图。
 3. 推送 `main`，Vercel 自动上线。
+
+### 致谢 · Credits
+
+- 骨骼动画课程的机器人模型 `RobotExpressive.glb`：Tomás Laulhé（[Quaternius](https://quaternius.com)）制作，Don McCurdy 修改，CC0 1.0 公共领域，取自 three.js 官方示例。The robot in the skeletal-animation lesson is by Tomás Laulhé (Quaternius), modified by Don McCurdy, CC0 1.0, from the three.js examples.
 
 ---
 

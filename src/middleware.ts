@@ -13,4 +13,4 @@ export function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/((?!api/|_next/|vendor/|sandbox.html|favicon|icon|.*\\.(?:png|jpg|svg|js|css|json|txt|xml|woff2?)$).*)"] };
+export const config = { matcher: ["/((?!api/|_next/|vendor/|models/|sandbox.html|favicon|icon|.*\\.(?:png|jpg|svg|js|css|json|txt|xml|woff2?)$).*)"] };

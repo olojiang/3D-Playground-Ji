@@ -1,0 +1,52 @@
+{
+  "slug": "deferred-rendering",
+  "order": 13,
+  "difficulty": "advanced",
+  "requires": "webgl2",
+  "tags": [
+    "deferred",
+    "g-buffer",
+    "mrt",
+    "point-lights",
+    "framebuffer",
+    "float-textures"
+  ],
+  "title": {
+    "zh": "延迟渲染：G-buffer 与上百盏灯",
+    "en": "Deferred Rendering: G-buffer & Hundreds of Lights"
+  },
+  "summary": {
+    "zh": "用 MRT 一次写出位置、法线、颜色三张纹理，再用光照体积把上百盏点光源叠加上去，并能逐张查看 G-buffer。",
+    "en": "Write position, normal and albedo in one pass with MRT, add up to 256 point lights with light volumes, and inspect every G-buffer channel."
+  },
+  "concepts": {
+    "zh": "## 前向渲染的瓶颈\n\n传统的**前向渲染**在画每个物体时就把所有灯光算完：物体数 × 灯光数。100 个物体、100 盏灯就是一万对组合，而且被遮挡的片元也白白算了光照。\n\n**延迟渲染**把“表面是什么样”和“它被怎么照亮”拆成两步：\n\n1. **几何 pass**：每个物体只画一次，不算光照，只把表面属性写进 **G-buffer**（几何缓冲）。\n2. **光照 pass**：只对屏幕上**最终可见**的像素计算光照，每个像素读回自己的位置、法线和颜色。\n\n## MRT：一次写多张纹理\n\nWebGL 2 的**多渲染目标**（Multiple Render Targets）让一个片元着色器同时输出到多个颜色附件：\n\n```glsl\nlayout(location = 0) out vec4 gPosition;  // RGBA16F：世界坐标\nlayout(location = 1) out vec4 gNormal;    // RGBA16F：法线\nlayout(location = 2) out vec4 gAlbedo;    // RGBA8：颜色 + 自发光标记\n```\n\n```js\ngl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);\n```\n\n## 浮点渲染目标与降级\n\n在 WebGL 2 里，**采样**浮点纹理是核心功能，但**渲染到**浮点纹理需要扩展 `EXT_color_buffer_float`（或 `EXT_color_buffer_half_float`）。没有它时本例这样降级：\n\n- 法线压缩到 8 位：`n * 0.5 + 0.5`，读取时再 `* 2.0 - 1.0`；\n- 不存位置，而是用**深度纹理 + 像素坐标 + 逆视图投影矩阵**重建世界坐标，这也是真实引擎常用的省带宽做法；\n- 用 `drawBuffers([NONE, COLOR_ATTACHMENT1, COLOR_ATTACHMENT2])` 跳过位置附件。\n\n## 光照体积\n\n光照 pass有两种常见写法：全屏四边形里循环所有灯，或者像本例这样把每盏灯画成一个球（**光照体积**），开启加法混合 `blendFunc(ONE, ONE)`，只有球覆盖的像素才计算这盏灯。画球的**背面**（`cullFace(FRONT)`），相机走进球里也不会漏掉。累加结果存在一张 HDR 缓冲里，最后统一色调映射。切换到 **lights per pixel** 能看到每个像素被几盏灯计算过：这正是分块（tiled）与分簇（clustered）渲染要进一步优化的东西。\n\n## 代价\n\nG-buffer 很吃显存带宽（1080p 下几十 MB），透明物体没法写进 G-buffer，通常要再用前向渲染补画；MSAA 也很难直接用。所以很多现代引擎选择 Forward+ 与延迟渲染混用。\n\n> 把 **buffer** 切到 G-buffer 2×2，一次看到位置、法线、颜色和最终结果。",
+    "en": "## The forward-rendering bottleneck\n\nClassic **forward rendering** evaluates every light while drawing each object: objects × lights. A hundred objects and a hundred lights make ten thousand pairs, and fragments that end up hidden are lit for nothing.\n\n**Deferred rendering** splits \"what the surface is\" from \"how it is lit\":\n\n1. **Geometry pass**: draw each object once with no lighting, writing surface attributes into a **G-buffer** (geometry buffer).\n2. **Lighting pass**: light only the pixels that are **finally visible**; each pixel reads back its position, normal and colour.\n\n## MRT: write several textures at once\n\nWebGL 2's **Multiple Render Targets** let one fragment shader output to several colour attachments:\n\n```glsl\nlayout(location = 0) out vec4 gPosition;  // RGBA16F: world position\nlayout(location = 1) out vec4 gNormal;    // RGBA16F: normal\nlayout(location = 2) out vec4 gAlbedo;    // RGBA8: colour + emissive flag\n```\n\n```js\ngl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);\n```\n\n## Float render targets and the fallback\n\nIn WebGL 2, **sampling** float textures is core, but **rendering into** them needs `EXT_color_buffer_float` (or `EXT_color_buffer_half_float`). Without it, this lesson falls back:\n\n- Normals are packed into 8 bits as `n * 0.5 + 0.5` and unpacked with `* 2.0 - 1.0`.\n- Position is not stored; it is rebuilt from the **depth texture, the pixel coordinate and the inverse view-projection matrix**, which real engines also do to save bandwidth.\n- `drawBuffers([NONE, COLOR_ATTACHMENT1, COLOR_ATTACHMENT2])` skips the position attachment.\n\n## Light volumes\n\nThere are two common lighting passes: a full-screen quad that loops over every light, or, as here, drawing each light as a sphere (a **light volume**) with additive blending `blendFunc(ONE, ONE)`, so only the pixels the sphere covers evaluate that light. Drawing the sphere's **back faces** (`cullFace(FRONT)`) keeps it working when the camera is inside. Results accumulate in an HDR buffer that is tone-mapped once at the end. Switch to **lights per pixel** to see how many lights each pixel evaluates; tiled and clustered shading optimise exactly that.\n\n## The costs\n\nA G-buffer eats memory bandwidth (tens of MB at 1080p), transparent objects cannot live in it and are usually drawn with a forward pass afterwards, and MSAA is hard to apply. That is why many modern engines mix Forward+ and deferred shading.\n\n> Switch **buffer** to G-buffer 2×2 to see position, normal, albedo and the final image at once."
+  },
+  "keyApis": [
+    "gl.drawBuffers",
+    "layout(location = N) out",
+    "gl.RGBA16F",
+    "EXT_color_buffer_float",
+    "gl.clearBufferfv",
+    "texelFetch",
+    "gl.blendFunc(gl.ONE, gl.ONE)",
+    "gl.cullFace(gl.FRONT)",
+    "gl.drawElementsInstanced",
+    "gl.vertexAttribDivisor"
+  ],
+  "tryThis": {
+    "zh": [
+      "把 point lights 拉到 256，再切到 lights per pixel，看看哪里最“贵”；然后把 light radius 调小，对比热力图。",
+      "在代码里把 floatTargets 强制设为 false，确认降级路径（深度重建位置）画面几乎一样。",
+      "给 G-buffer 加一个粗糙度通道：放进 gAlbedo 的 alpha 或新增第 4 个附件，让高光指数随物体变化。",
+      "把光照体积换成一个全屏三角形 + 循环所有灯，对比两种写法在 256 盏灯时的帧率。"
+    ],
+    "en": [
+      "Push point lights to 256, switch to lights per pixel and find the expensive spots; then shrink light radius and compare the heat map.",
+      "Force floatTargets to false in the code and confirm the fallback (position rebuilt from depth) looks almost identical.",
+      "Add a roughness channel to the G-buffer, in gAlbedo's alpha or a fourth attachment, and let the specular exponent vary per object.",
+      "Replace the light volumes with one full-screen triangle that loops over every light, and compare frame rates at 256 lights."
+    ]
+  }
+}
