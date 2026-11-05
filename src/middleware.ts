@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { langFromQuery } from "@/core/seo";
+import { langFromQuery } from "@/core/lang-query";
 
 /** `?lang=zh|en` (used by hreflang alternates) selects the language for this request and remembers it in the tp-lang cookie. */
 export function middleware(req: NextRequest) {

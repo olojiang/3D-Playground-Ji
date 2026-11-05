@@ -5,7 +5,7 @@
 import type { Metadata, MetadataRoute } from "next";
 import { CATEGORIES, examplePath, type Category, type Example } from "./examples";
 import { translate, type MessageKey } from "./i18n";
-import { isLang, type Lang } from "./userdata";
+import type { Lang } from "./userdata";
 import { sharePath, type SharedSnippet } from "./share";
 
 export const SITE_URL = "https://3d.827722.xyz";
@@ -16,11 +16,7 @@ export const absoluteUrl = (path: string) => `${SITE_URL}${path.startsWith("/") 
 const OG_LOCALE: Record<Lang, string> = { zh: "zh_CN", en: "en_US" };
 const HREFLANG: Record<Lang, string> = { zh: "zh-CN", en: "en" };
 
-/** `?lang=en` → "en"; anything else → null. */
-export function langFromQuery(search: string): Lang | null {
-  const v = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get("lang");
-  return isLang(v) ? v : null;
-}
+export { langFromQuery } from "./lang-query";
 
 export function langAlternates(path: string): NonNullable<Metadata["alternates"]> {
   return { canonical: path, languages: { "zh-CN": `${path}?lang=zh`, en: `${path}?lang=en`, "x-default": path } };

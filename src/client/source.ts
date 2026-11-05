@@ -85,7 +85,7 @@ export class LocalSource implements DataSource {
     return next.length !== all.length;
   }
   /** Share links live on the server, so guests must sign in first. */
-  async setShared(_id: string, _on: boolean): Promise<string | null> { throw new ApiError(401, "unauthorized"); }
+  async setShared(id: string, on: boolean): Promise<string | null> { void id; void on; throw new ApiError(401, "unauthorized"); }
   /** Everything a guest has, in the backup format the server's /api/import accepts. */
   async exportBackup() {
     return { app: "3d-playground-ji" as const, version: 1 as const, settings: await this.getSettings(), progress: await this.listProgress(), favorites: await this.listFavorites(), snippets: this.snippets() };

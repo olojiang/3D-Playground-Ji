@@ -8,7 +8,7 @@ import { translate, type MessageKey } from "@/core/i18n";
 import { resolveTheme, themeById } from "@/core/themes";
 import { DEFAULT_SETTINGS, sanitizeSettings, type Lang, type Settings, type ProgressEntry } from "@/core/userdata";
 import { LocalSource, RemoteSource, api, ApiError, LS, type DataSource } from "./source";
-import { langFromQuery } from "@/core/seo";
+import { langFromQuery } from "@/core/lang-query";
 
 export interface User { id: number; email: string; name: string }
 export interface Toast { id: number; text: string; tone: "info" | "success" | "error" }
